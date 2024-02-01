@@ -47,5 +47,6 @@ export const CONFIG = {
     REDIS_CONFIG: process.env.REDIS_CONFIG || 'localhost|6379',
     OIDC_PROVIDERS: JSON.parse(
         process.env.OIDC_PROVIDERS || `[]`
-    )
+    ),
+    API_TOKEN: process.env.API_TOKEN || 'MGMT_SERVICE'
 }
