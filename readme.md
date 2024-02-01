@@ -7,11 +7,11 @@ CLM serves as a mediator between learning platforms and learning content, while 
 The two videos below explain CLM from the perspective of a user and provider.
 
 #### User
-https://github.com/fraunhoferfokus/clm-core/assets/135810890/f04e54cc-11ca-4456-ada2-f24c155fe550
-
+https://github.com/fraunhoferfokus/clm-core/assets/135810890/44a340ab-1d86-4930-9c08-bffe457bc222
 
 #### Provider
-https://github.com/fraunhoferfokus/clm-core/assets/135810890/04791f9f-92e7-4558-a90f-d59d2f7f0153
+https://github.com/fraunhoferfokus/clm-core/assets/135810890/87cd557e-3214-4b13-b49d-703f9eccca7d
+
 
 ## CLM-CORE
 This is the core module from which all other microservices inherit to extend their own functionality. The focus here is on user and rights management as well as the relationship model. Together with the other six services, this forms the Open-Core package of the Common Learning Middleware.
