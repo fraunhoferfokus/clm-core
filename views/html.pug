@@ -1,0 +1,24 @@
+doctype html
+html
+  head
+    block head
+      meta(charset="utf-8")
+      meta(name="viewport", content="width=device-width")
+      meta(http-equiv="X-UA-Compatible", content="IE=edge")
+      meta(name="x-apple-disable-message-reformatting")
+      title= subject
+      // link(rel="stylesheet", href="style.css", data-inline)
+  body
+    - var href_verification = url;
+    p Hallo #{firstname} #{lastname},
+    p
+    p Vielen Dank für die Erstellung des Accounts am KI-Demonstrator.
+    p Bitte bestätigen Sie Ihre E-Mail Adresse, um die Anmeldung abzuschliessen.
+    
+    a(href=href_verification) Meine E-Mail Adresse bestätigen
+    //- a(href="http://localhost/") Meine E-Mail Adresse bestätigen
+    p
+   
+  footer
+    - var href_imprint = imprint;
+    a(href='https://bwcoretech.fokus.fraunhofer.de/app/#/auth/login') Impressum / Imprint

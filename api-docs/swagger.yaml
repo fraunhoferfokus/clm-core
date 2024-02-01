@@ -1,0 +1,1078 @@
+openapi: 3.0.0
+info:
+  title: CLM-Core
+  version: 1.0.0
+  description: API endpoints the clm-core module offers
+servers:
+  - url: '{scheme}://{hostname}:{port}{path}'
+    description: The production API server
+    variables:
+      hostname:
+        default: localhost
+      port:
+        default: '5008'
+      path:
+        default: ''
+      scheme:
+        default: http
+security:
+  - bearerAuth: []
+paths:
+  /core/authentication:
+    post:
+      tags:
+        - pblc
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  default: fame@fokus.fraunhofer.de
+                password:
+                  type: string
+                  default: 12345
+              required:
+                - email
+      responses:
+        '200':
+          description: Successfully logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    $ref: '#/components/parameters/accessToken'
+                  refreshToken:
+                    $ref: '#/components/parameters/accessToken'
+                  accessTokenExpiresIn:
+                    type: string
+                    default: 12/10/2022
+                  refreshTokenExpiresIn:
+                    type: string
+                    default: 12/10/2022
+  /core/authentication/refresh:
+    get:
+      tags:
+        - pblc
+      security:
+        - bearerAuth: []
+        - refreshAuth: []
+      responses:
+        '200':
+          description: Refreshe access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    $ref: '#/components/parameters/accessToken'
+  /core/mgmt/paths:
+    get:
+      tags:
+        - mgmt-paths
+        - mgmt
+      description: Gets all available paths CLM offers
+      summary: Gets all available paths CLM offers
+      parameters: []
+      responses:
+        '200':
+          description: Successfully got all paths
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  _id:
+                    type: string
+                    description: the id of the path. Same as the route attribute
+                    default: IdOfThePath
+                  route:
+                    type: string
+                    description: the route of the path
+                    default: /route/of/the/path
+  '/core/mgmt/roles/{id}':
+    delete:
+      tags:
+        - mgmt-roles
+        - mgmt
+      description: Delete a role
+      summary: 'Delete a role [Minimum Role: SUPER-ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - name: id
+          in: path
+          required: true
+          description: The id of the role to update
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully deleted role
+    patch:
+      tags:
+        - mgmt-roles
+        - mgmt
+      description: Update a role
+      summary: 'Update a role [Minimum Role: SUPER-ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - name: id
+          in: path
+          required: true
+          description: The id of the role to update
+          schema:
+            type: string
+      requestBody:
+        description: The role to update
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createUpdateRole'
+      responses:
+        '200':
+          description: Successfully updated role
+    put:
+      tags:
+        - mgmt-roles
+        - mgmt
+      description: Update a role
+      summary: 'Update a role [Minimum Role: SUPER-ADMIN]'
+      requestBody:
+        description: The role to update
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createUpdateRole'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - name: id
+          in: path
+          required: true
+          description: The id of the role to update
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully updated role
+  /core/mgmt/roles:
+    get:
+      tags:
+        - mgmt-roles
+        - mgmt
+      description: Get all roles
+      summary: Get all roles in the system
+      responses:
+        '200':
+          description: All roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/role'
+    post:
+      tags:
+        - mgmt-roles
+        - mgmt
+      description: Add a role to the system
+      summary: 'Add a role to the system [Minimum Role: SUPER-ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      requestBody:
+        description: The user to add to the group
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createUpdateRole'
+      responses:
+        '200':
+          description: Successfully added user to group
+  '/core/mgmt/consumers/{encryptedId}/confirm':
+    get:
+      tags:
+        - pblc-redirect
+      description: Double-opt in for API-Token when created.
+      summary: Confiming API-Token
+      parameters:
+        - in: path
+          name: encryptedId
+          required: true
+          description: The encrypted id of the API-Token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully activated API-Token
+  /core/mgmt/consumers:
+    get:
+      tags:
+        - mgmt-consumers
+        - mgmt
+      description: Super-Admin can get all API-Tokens
+      summary: 'Get all API-Tokens [Minimum Role: SUPER-ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: All API-Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/consumer'
+    post:
+      tags:
+        - mgmt-consumers
+        - mgmt
+      description: Super-Admin can get create API-Tokens
+      summary: 'Create an API-Token [Minimum Role: SUPER-ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: Successfully created API-Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/consumer'
+  '/core/mgmt/consumers/{id}':
+    put:
+      tags:
+        - mgmt-consumers
+        - mgmt
+      description: Super-Admin can get update API-Tokens
+      summary: 'Update an API-Token [Minimum Role: SUPER-ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          name: id
+          required: true
+          description: The id of the API-Token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully updated API-Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/consumer'
+  '/core/mgmt/groups/{groupId}/users/{userId}':
+    post:
+      tags:
+        - mgmt-groups
+        - mgmt
+      description: >-
+        Add user can add a target user to a group if the user is admin and the
+        target user in a child-group of the admin group
+      summary: 'Add user to a group [Minimum Role: ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          name: groupId
+          description: The id of the group
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          description: The userId of the group
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully added user to group
+    delete:
+      tags:
+        - mgmt-groups
+        - mgmt
+      description: >-
+        A user can delete a target user from a group if the user is admin and
+        the target user in a child-group of the admin group
+      summary: 'Remove user from a group [Minimum Role: ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          name: groupId
+          description: The id of the group
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          description: The userId of the group
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Successfully removed user from group
+  /core/mgmt/groups:
+    get:
+      tags:
+        - mgmt-groups
+        - mgmt
+      description: A user can access all his groups and subgroups
+      summary: 'Get all groups [Minimum Role: LEARNER]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: Successfully removed user from group
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/group'
+    post:
+      tags:
+        - mgmt-groups
+        - mgmt
+      description: A user can create a group if hes atleast ADMIN in another group
+      summary: 'Create group [Minimum Role: ADMIN]'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                displayName:
+                  type: string
+                  description: how the group should be named
+                  default: Example-Group
+                role:
+                  type: string
+                  enum:
+                    - LEARNER
+                    - INSTRUCTOR
+                    - ADMIN
+                  description: The role you want to give the group
+                  default: LEARNER
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: Successfully removed user from group
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/group'
+  /core/mgmt/groups/relations:
+    get:
+      tags:
+        - mgmt-groups
+      description: Getting all relations of the groups the user is part of
+      summary: 'Get group-relations [Minimum Role: LEARNER]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: Successfully added group to a group
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/relation'
+  '/core/mgmt/groups/{groupId}':
+    patch:
+      tags:
+        - mgmt-groups
+        - mgmt
+      description: A user can update a group if he has admin privileges on that group
+      summary: 'Updating a specific group [Minimum Role: ADMIN]'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                displayName:
+                  type: string
+                  description: how the group should be named
+                  default: Example-Group
+                role:
+                  type: string
+                  enum:
+                    - LEARNER
+                    - INSTRUCTOR
+                    - ADMIN
+                  description: The role you want to give the group
+                  default: LEARNER
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          required: true
+          name: groupId
+          description: the id of the group
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully updated a group
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/group'
+    delete:
+      tags:
+        - mgmt-groups
+        - mgmt
+      description: A user can delete a group if he has admin privileges on that group
+      summary: 'Delete a specific group [Minimum Role: ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          required: true
+          name: groupId
+          description: the id of the group
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Successfully deleted a group
+  '/core/mgmt/groups/{groupId}/groups/{childGroupId}':
+    post:
+      tags:
+        - mgmt-groups
+        - mgmt
+      description: >-
+        A user can add a group to a group if he has has admin privileges on the
+        from group and the target group
+      summary: 'Add group to group [Minimum Role: ADMIN]'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          name: groupId
+          description: the id of the group
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: childGroupId
+          description: the id of the child-group
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Successfully added a group to a group
+  /core/mgmt/users:
+    get:
+      tags:
+        - mgmt-users
+        - mgmt
+      description: User can get all the users he is in the same group with
+      summary: 'Get users [Minimum Role: ''LEARNER'']'
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: The list of users
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/user'
+    post:
+      tags:
+        - mgmt-users
+        - mgmt
+      description: User can create a user when he is in an admin group
+      summary: 'Create a user [Minimum Role: "ADMIN"]'
+      requestBody:
+        required: true
+        description: Payload user
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  type: string
+                  default: student@localhost.de
+                password:
+                  type: string
+                  default: '12345'
+                givenName:
+                  type: string
+                  default: Maximillian
+                familyName:
+                  type: string
+                  default: Mustermann
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: Successfully created a user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user'
+  '/core/mgmt/users/{id}':
+    delete:
+      tags:
+        - mgmt-users
+        - mgmt
+      description: >-
+        User can delete a target user if the user is admin and the target user
+        is in a child-group of the admin group
+      summary: 'Create a user [Minimum Role: "ADMIN"]'
+      parameters:
+        - in: path
+          name: id
+          description: email of the target user
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '204':
+          description: Successfully deleted a user
+    patch:
+      tags:
+        - mgmt-users
+      description: >-
+        User can update a target user if the user is admin and the target user
+        is in a child-group of the admin group
+      summary: 'Update a user [Minimum Role: "ADMIN"]'
+      requestBody:
+        required: true
+        description: Payload user
+        content:
+          application/json:
+            schema:
+              properties:
+                password:
+                  type: string
+                  default: '12345'
+                givenName:
+                  type: string
+                  default: Maximillian
+                familyName:
+                  type: string
+                  default: Mustermann
+      parameters:
+        - in: path
+          name: id
+          description: email of the target user
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: The list of users
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/user'
+    put:
+      tags:
+        - mgmt-users
+      description: >-
+        User can update a target user if the user is admin and the target user
+        is in a child-group of the admin group
+      summary: 'Update a user [Minimum Role: "ADMIN"]'
+      requestBody:
+        required: true
+        description: Payload user
+        content:
+          application/json:
+            schema:
+              properties:
+                password:
+                  type: string
+                  default: '12345'
+                givenName:
+                  type: string
+                  default: Maximillian
+                familyName:
+                  type: string
+                  default: Mustermann
+      parameters:
+        - in: path
+          name: id
+          description: email of the target user
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: The list of users
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/user'
+  '/core/users/verifyToken/{tokenId}':
+    get:
+      tags:
+        - pblc-redirect
+      description: >-
+        Double-opt in for user after the instructions have been sent to the
+        email
+      summary: Confirm user
+      parameters:
+        - in: path
+          required: true
+          name: tokenId
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully registered user
+  /core/users/me/permissions:
+    get:
+      tags:
+        - pblc
+      description: Get the user permissions
+      summary: Get the user permissions
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: User Permissions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nameOfTheResource:
+                    description: The name of the resource
+                    type: object
+                    properties:
+                      some_id:
+                        example: 4
+                        type: number
+                        description: The strength of the permission over the resource
+  '/core/users/{userId}/permissions':
+    get:
+      tags:
+        - pblc
+      description: Get the user permissions
+      summary: Get the user permissions
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          name: userId
+          description: id of the user
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User Permissions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nameOfTheResource:
+                    description: The name of the resource
+                    type: object
+                    properties:
+                      some_id:
+                        example: 4
+                        type: number
+                        description: The strength of the permission over the resource
+  /core/users/userInfo:
+    get:
+      tags:
+        - pblc
+      description: Get own user information
+      summary: Get own user information
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: Getting user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user'
+  '/core/users/{userId}':
+    get:
+      tags:
+        - pblc
+      description: Get own user information
+      summary: Get own user information
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          name: userId
+          description: id of the user
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Getting user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user'
+  /core/users/me/groups:
+    get:
+      tags:
+        - pblc
+      description: Get the groups the user is part of
+      summary: Get the groups the user is part of
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: User groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - properties:
+                        role:
+                          type: string
+                          enum:
+                            - LEARNER
+                            - INSTRUCTOR
+                            - ADMIN
+                            - SUPER-ADMIN
+                          description: the role the user has on this group
+                    - $ref: '#/components/schemas/group'
+  '/core/users/{userId}/groups':
+    get:
+      tags:
+        - pblc
+      description: Get the groups the user is part of
+      summary: Get the groups the user is part of
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          name: userId
+          description: id of the user
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - properties:
+                        role:
+                          type: string
+                          enum:
+                            - LEARNER
+                            - INSTRUCTOR
+                            - ADMIN
+                            - SUPER-ADMIN
+                          description: the role the user has on this group
+                    - $ref: '#/components/schemas/group'
+  /core/users/me/roles:
+    get:
+      tags:
+        - pblc
+      description: Get the roles of the user (descends from the groups)
+      summary: Get the roles of the user
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+      responses:
+        '200':
+          description: User roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - properties:
+                        roles:
+                          type: array
+                          description: the roles the user has
+                          items:
+                            type: string
+                            enum:
+                              - LEARNER
+                              - INSTRUCTOR
+                              - ADMIN
+                              - SUPER-ADMIN
+                    - $ref: '#/components/schemas/group'
+  '/core/users/{userId}/roles':
+    get:
+      tags:
+        - pblc
+      description: Get the roles of the user (descends from the groups)
+      summary: Get the roles of the user
+      parameters:
+        - $ref: '#/components/parameters/accessToken'
+        - in: path
+          name: userId
+          description: id of the user
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - properties:
+                        roles:
+                          type: array
+                          description: the roles the user has
+                          items:
+                            type: string
+                            enum:
+                              - LEARNER
+                              - INSTRUCTOR
+                              - ADMIN
+                              - SUPER-ADMIN
+                    - $ref: '#/components/schemas/group'
+  /core/users:
+    post:
+      tags:
+        - pblc
+      description: >-
+        Register user. The instructions will send to the email provided in the
+        payload
+      summary: >-
+        Register user. The instructions will send to the email provided in the
+        payload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                givenName:
+                  type: string
+                  default: Max
+                familyName:
+                  type: string
+                  default: Mustermann
+                password:
+                  type: string
+                  default: 12345
+                email:
+                  type: string
+                  default: Max@Mustermann.de
+      responses:
+        '200':
+          description: >-
+            Successfully registerd user (not yet activated). Instructions will
+            be sent to the provided E-Mail
+components:
+  schemas:
+    relation:
+      type: object
+      properties:
+        fromType:
+          type: string
+          description: The type of the node
+          default: fromTypeNode
+        toType:
+          type: string
+          description: The type of the target node
+          default: toTypeNode
+        fromId:
+          type: string
+          description: The id of the node
+          default: fromNodeId
+        toId:
+          type: string
+          description: The id of the target node
+          default: toNodeId
+        order:
+          type: number
+          description: >-
+            The order of the relation. Used for example ordering the enrollments
+            of a group/user
+          default: 0
+    role:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: id of the group
+          default: jaiosdjfiojifj2341dij
+        displayName:
+          type: string
+          description: How to role is named
+          default: Learner
+        updatedAt:
+          type: string
+          description: when the group was last updated
+          default: 10-10-2020
+        createdAt:
+          type: string
+          description: id of the group
+          default: 10-10-2022
+        resourcePermissions:
+          type: object
+          description: The permissions of the group
+          default:
+            lo: 15
+            service: 15
+            tool: 15
+            group: 15
+            user: 15
+            role: 15
+            consumer: 15
+        lineage:
+          type: boolean
+          description: If the group is a lineage group
+          default: true
+        strength:
+          type: number
+          description: The strength of the group
+          default: 0
+    createUpdateRole:
+      type: object
+      properties:
+        lineage:
+          type: boolean
+          description: If the group is a lineage group
+          default: true
+        displayName:
+          type: string
+          default: Learner
+          description: How to role is named
+        strength:
+          type: number
+          description: The strength of the group
+          default: 0
+        resourcePermissions:
+          type: object
+          description: The permissions of the group
+          properties:
+            lo:
+              type: number
+              description: The permission for the learning object
+              default: 1
+            service:
+              type: number
+              description: The permission for the service
+              default: 1
+            tool:
+              type: number
+              description: The permission for the tool
+              default: 1
+            group:
+              type: number
+              description: The permission for the group
+              default: 1
+            user:
+              type: number
+              description: The permission for the user
+              default: 1
+            role:
+              type: number
+              description: The permission for the role
+              default: 1
+            consumer:
+              type: number
+              description: The permission for the consumer
+              default: 1
+    consumer:
+      properties:
+        displayName:
+          type: string
+          default: API-Token
+        active:
+          type: boolean
+          default: false
+        userId:
+          type: boolean
+          description: The user who associates with that API-Token
+          default: consumer@localhost.org
+        domain:
+          type: string
+          default: STAKEHOLDER-DOMAIN
+        paths:
+          type: object
+          properties:
+            scope:
+              type: array
+              items:
+                type: string
+                enum:
+                  - GET
+                  - PUT
+                  - POST
+                  - DELETE
+                  - PATCH
+              description: The HTTP methods which can be applied to the route
+            route:
+              type: string
+              default: /some/route/the/token/can/access
+    group:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: id of the group
+          default: jaiosdjfiojifj2341dij
+        displayName:
+          type: string
+          description: how the group should be displayed
+          default: Example-Group
+        updatedAt:
+          type: string
+          description: when the group was last updated
+          default: 10-10-2020
+        createdAt:
+          type: string
+          description: id of the group
+          default: 10-10-2022
+    user:
+      type: object
+      properties:
+        email:
+          type: string
+          default: fame@fokus.fraunhofer.de
+        isVerified:
+          type: boolean
+          default: true
+        givenName:
+          type: string
+          default: max
+        familyName:
+          type: string
+          default: Mustermann
+        isSuperAdmin:
+          type: boolean
+          default: false
+  parameters:
+    accessToken:
+      name: x-access-token
+      in: header
+      description: The access token
+      required: true
+      example: exampleAccessToken
+      schema:
+        type: string
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    refreshAuth:
+      type: apiKey
+      in: header
+      name: x-refresh-token
+tags: []

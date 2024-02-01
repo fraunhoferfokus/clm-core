@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout</title>
+    <style>
+        pre {
+            background-color: #f5f5f5;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            /* Add this line */
+        }
+
+        code {
+            color: #333;
+        }
+
+        .logout-btn {
+            background-color: #f44336;
+            /* Red color */
+            color: #fff;
+            /* White text */
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .logout-btn:hover {
+            background-color: #e53935;
+            /* Slightly darker red on hover */
+            transform: scale(1.05);
+            /* Slightly enlarge button on hover */
+        }
+
+        .logout-btn:focus {
+            outline: none;
+        }
+
+        .token-details {
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>User</h3>
+    <pre>
+        <code>
+    interne user_id: <%- user._id -%>
+                <br>
+    externe user_id: <%- user.familyName -%>
+        </code>
+    </pre>
+
+
+    <h3>Tokens</h3>
+    <pre>
+        <code>
+        <div class="token-details">
+            <p><strong>idp_access_token:</strong> <%- access_token %></p>
+            <p><strong>idp_refresh_token:</strong> <%- refresh_token %></p>
+            <p><strong>idp_access_token_expires_in:</strong> <%- access_token_expires_in %></p>
+            <p><strong>idp_refresh_token_expires_in:</strong> <%- refresh_token_expires_in %></p>
+        </div>
+    </code>
+</pre>
+
+    <h3>Course Structure:</h3>
+    <pre><code><%- course_structure %></code></pre>
+
+    <button class="logout-btn">
+        <a href="<%- end_session_endpoint -%>" style="color: inherit; text-decoration: none;">Logout</a>
+    </button>
+</body>
+
+</html>

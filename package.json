@@ -1,0 +1,78 @@
+{
+  "name": "clm-core",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/src/lib/CoreLib.js",
+  "types": "dist/src/lib/CoreLib.d.ts",
+  "scripts": {
+    "dev": "npx nodemon server.ts",
+    "build": "rm -rf ./dist && npx tsc",
+    "build-commit": "npm run build && npm run git-push",
+    "build-docs": "tsc && api-extractor run --local && api-documenter markdown --input-folder api-extractor --output-folder docs",
+    "git-push": "git add . && git commit -m 'updated lib' && git push",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "AGPL-3.0",
+  "dependencies": {
+    "@types/bcryptjs": "^2.4.2",
+    "@types/cors": "^2.8.12",
+    "@types/crypto-js": "^4.1.1",
+    "@types/cryptr": "^4.0.1",
+    "@types/ejs": "^3.1.3",
+    "@types/express": "^4.17.13",
+    "@types/express-list-endpoints": "^6.0.0",
+    "@types/js-yaml": "^4.0.5",
+    "@types/mssql": "^8.0.3",
+    "@types/nano": "^7.0.0",
+    "@types/nodemailer": "^6.4.4",
+    "@types/passport": "^1.0.7",
+    "@types/passport-http": "^0.3.9",
+    "@types/passport-local": "^1.0.34",
+    "@types/swagger-jsdoc": "^6.0.1",
+    "@types/swagger-ui-express": "^4.1.3",
+    "@types/uuid": "^8.3.4",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.1.1",
+    "cryptr": "^6.0.3",
+    "dotenv": "^16.0.0",
+    "ejs": "^3.1.9",
+    "express": "^4.17.3",
+    "express-list-endpoints": "^6.0.0",
+    "express-validator": "^6.14.0",
+    "ioredis": "^5.2.3",
+    "jsonwebtoken": "^8.5.1",
+    "mgr-swagger-express": "0.0.6",
+    "mysql2": "^2.3.3",
+    "nano": "^10.0.0",
+    "neo4j-driver": "^4.4.5",
+    "nodemailer": "^6.7.5",
+    "nodemailer-pug-engine": "^2.0.1",
+    "nodemon": "^2.0.15",
+    "passport": "^0.5.2",
+    "passport-http": "^0.3.0",
+    "passport-local": "^1.0.0",
+    "swagger-jsdoc": "^6.2.8",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.3",
+    "url-pattern": "^1.0.3",
+    "uuid": "^8.3.2",
+    "yaml": "^2.3.1"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^8.5.8",
+    "@types/node": "^17.0.26"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "**/test/**",
+      "**/swagger/**"
+    ],
+    "delay": 2500
+  }
+}

@@ -1,0 +1,1 @@
+{"version":3,"file":"RoleDAO.d.ts","sourceRoot":"","sources":["../../../../src/models/Role/RoleDAO.ts"],"names":[],"mappings":"AA8BA,OAAO,OAAO,MAAM,YAAY,CAAC;AACjC,OAAO,EAAE,SAAS,EAAE,SAAS,EAAE,MAAM,aAAa,CAAC;AAInD,cAAM,OAAQ,SAAQ,OAAO,CAAC,SAAS,CAAC;IAEpC,cAAc,CAAC,QAAQ,EAAE,SAAS,GAAG,OAAO,CAAC,SAAS,CAAC;CAS1D;;AAED,wBAAgD"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"GroupFDTO.d.ts","sourceRoot":"","sources":["../../../../src/models/Group/GroupFDTO.ts"],"names":[],"mappings":"AA8BC,OAAO,cAAc,EAAE,EAAE,gBAAgB,EAAE,MAAM,oBAAoB,CAAC;AAEvE,UAAU,UAAW,SAAQ,gBAAgB;IACzC,WAAW,EAAE,MAAM,CAAA;CAEtB;AAGD,MAAM,CAAC,OAAO,OAAO,SAAU,SAAQ,cAAe,YAAW,UAAU;IAEvE,WAAW,EAAE,MAAM,CAAC;gBACR,OAAO,EAAE,UAAU;CAKlC"}
