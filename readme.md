@@ -1,15 +1,15 @@
 # What is the Common Learning Middleware?
 
-Connecting disparate learning environments into educational ecosystems using open standards is a core use case of the Common Learning Middleware (CLM). Based on the best-of-breed approach, various providers of educational offerings can connect their learning content as learning nuggets via the CLM using a publish-subscribe system in order to increase their own reach. The CLM supports common standards of a seamless educational journey - to facilitate integration - and is also able to translate from one standard of a client system to the other or the same standard of the target system at the runtime of a request. 
+The connection of different educational technologies and specialized services to large educational ecosystems using open standards is a central use case of the Common Learning Middleware (CLM). Based on the Best-of-Breed strategy, various providers of educational offerings can connect their learning content via the CLM with a publish-subscribe system in order to increase their own reach. The CLM supports - to facilitate integration - common standards of a seamless educational journey and is even able to translate from one standard of a client system to an alternative standard supported by the target system at runtime of a request. 
 
-CLM serves as a mediator between learning platforms and learning content, while the integration of further standards enables consumers to offer extended services, such as AI-supported systems, recommender systems or learning analytics systems via the CLM.
+The CLM serves as an intermediary between learning applications and learning content, while the integration of further standards enables providers to offer advanced services such as AI-supported systems, recommender systems or learning analytics systems via the CLM.
 
-The two videos below explain CLM from the perspective of a user and provider.
+The following two videos explain CLM from the perspective of a user and a provider.
 
-#### User
+#### Short explaination video of the user perspective (German only)
 https://github.com/fraunhoferfokus/clm-core/assets/135810890/44a340ab-1d86-4930-9c08-bffe457bc222
 
-#### Provider
+#### Short explaination video of the perspective a content or infrastructure provider (German only)
 https://github.com/fraunhoferfokus/clm-core/assets/135810890/87cd557e-3214-4b13-b49d-703f9eccca7d
 
 
