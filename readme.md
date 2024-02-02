@@ -4,13 +4,15 @@ The connection of different educational technologies and specialized services to
 
 The CLM serves as an intermediary between learning applications and learning content, while the integration of further standards enables providers to offer advanced services such as AI-supported systems, recommender systems or learning analytics systems via the CLM.
 
+## Reference Projects
+
 The middleware approach has already been tested in various settings
 * Prototype of German National Education Platform “mEDUator”: https://meduator.fokus.fraunhofer.de/
 * Research Study “AI in LMS” for the German Armed Forces: https://kilms.fraunhofer.de/ 
-* In various German government-funded projects to connect adaptive educational technologies
- * such as Control&Connect: https://www.fokus.fraunhofer.de/en/projects/fame/control_connect_23-05 
- * EXPAND+ER WB³: https://www.fokus.fraunhofer.de/en/project/fame/expander_2021-12 
- * TripleAdapt: https://www.fokus.fraunhofer.de/en/fame/projects/tripleadapt 
+* In various German government-funded projects to connect adaptive educational technologies; such as
+ ** Control&Connect: https://www.fokus.fraunhofer.de/en/projects/fame/control_connect_23-05 
+ ** EXPAND+ER WB³: https://www.fokus.fraunhofer.de/en/project/fame/expander_2021-12 
+ ** TripleAdapt: https://www.fokus.fraunhofer.de/en/fame/projects/tripleadapt 
 
 The following two videos explain CLM from the perspective of a user and a provider.
 
