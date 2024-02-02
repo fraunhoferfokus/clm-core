@@ -14,12 +14,14 @@ The middleware approach has already been tested in various settings
    * EXPAND+ER WB³: https://www.fokus.fraunhofer.de/en/project/fame/expander_2021-12 
    * TripleAdapt: https://www.fokus.fraunhofer.de/en/fame/projects/tripleadapt 
 
+### Video Explanation
+
 The following two videos explain CLM from the perspective of a user and a provider.
 
-#### Short explaination video of the user perspective (German only)
+#### Short explanation video of the user perspective (German only)
 https://github.com/fraunhoferfokus/clm-core/assets/135810890/44a340ab-1d86-4930-9c08-bffe457bc222
 
-#### Short explaination video of the perspective a content or infrastructure provider (German only)
+#### Short explanation video of the perspective a content or infrastructure provider (German only)
 https://github.com/fraunhoferfokus/clm-core/assets/135810890/87cd557e-3214-4b13-b49d-703f9eccca7d
 
 
