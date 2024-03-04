@@ -27,21 +27,16 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
+import cors from 'cors'
 import dotenv from 'dotenv'
 dotenv.config()
-import cors from 'cors'
 import express from 'express'
+import path from 'path'
+import { CONFIG } from './src/config/config'
 import configureDependencies from './src/config/configureDeps'
 import EntryPointController from './src/controllers/EntryPointController'
 import errHandler from './src/handlers/ErrorHandler'
-import { CONFIG } from './src/config/config'
-import path from 'path'
-import { GroupModel, RelationModel, relationBDTOInstance } from './src/lib/CoreLib'
-import RelationDAO from './src/models/Relation/RelationDAO'
-import GroupDAO from './src/models/Group/GroupDAO'
-import RoleDAO from './src/models/Role/RoleDAO'
-import { v4 as uuidv4 } from 'uuid'
+
 
 export const ROOT_DIR = process.cwd()
 
@@ -89,7 +84,7 @@ app.use(errHandler);
 
 configureDependencies(app, EXCLUDED_PATHS).then(() =>
     app.listen(PORT, () => {
-        console.info('Listening for core')
+        console.info(`Listening for core on port ${PORT}`)
     })
 ).catch((err) => {
     console.error(JSON.stringify(err))

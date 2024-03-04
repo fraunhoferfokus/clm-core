@@ -108,6 +108,10 @@ This service functions as a web microservice that can be orchestrated through a 
 3. `npm run dev` for development with nodemon.
 4. `npm start` for deployment.
 
+5. Subsequently, the JSON representation of the Open-API specification should be accessible at:
+
+`http://localhost:${PORT}/core/swagger`
+
 ## For Consumption as an NPM Package
 
 - Documentation about all exposed modules can be found under `/docs`.
