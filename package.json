@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "npx nodemon server.ts",
     "build": "rm -rf ./dist && npx tsc",
+    "start": "node dist/server.js",
     "build-commit": "npm run build && npm run git-push",
     "build-docs": "tsc && api-extractor run --local && api-documenter markdown --input-folder api-extractor --output-folder docs",
     "git-push": "git add . && git commit -m 'updated lib' && git push",

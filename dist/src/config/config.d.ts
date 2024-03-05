@@ -15,6 +15,6 @@ export declare const CONFIG: {
     TOKEN_SECRET: string;
     REDIS_CONFIG: string;
     OIDC_PROVIDERS: any;
-    ODIC_CLIENTS: any;
+    API_TOKEN: string;
 };
 //# sourceMappingURL=config.d.ts.map

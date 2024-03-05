@@ -1,4 +1,9 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ROOT_DIR = void 0;
 /* -----------------------------------------------------------------------------
  *  Copyright (c) 2023, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
  *
@@ -28,20 +33,15 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ROOT_DIR = void 0;
+const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
-const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
+const path_1 = __importDefault(require("path"));
+const config_1 = require("./src/config/config");
 const configureDeps_1 = __importDefault(require("./src/config/configureDeps"));
 const EntryPointController_1 = __importDefault(require("./src/controllers/EntryPointController"));
 const ErrorHandler_1 = __importDefault(require("./src/handlers/ErrorHandler"));
-const config_1 = require("./src/config/config");
-const path_1 = __importDefault(require("path"));
 exports.ROOT_DIR = process.cwd();
 //@ts-ignore
 global.__basedir = __dirname;
@@ -75,7 +75,7 @@ app.set('view engine', 'ejs');
 app.use(basePath, EntryPointController_1.default);
 app.use(ErrorHandler_1.default);
 (0, configureDeps_1.default)(app, EXCLUDED_PATHS).then(() => app.listen(PORT, () => {
-    console.info('Listening for core');
+    console.info(`Listening for core on port ${PORT}`);
 })).catch((err) => {
     console.error(JSON.stringify(err));
 });
