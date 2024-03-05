@@ -112,6 +112,8 @@ This service functions as a web microservice that can be orchestrated through a 
 
 `http://localhost:${PORT}/core/swagger`
 
+**To access the API endpoints detailed in the Open-API specification, an API token is required. This token is generated during the initialization of the clm-core module. Please refer to the .env table**
+
 ## For Consumption as an NPM Package
 
 - Documentation about all exposed modules can be found under `/docs`.
