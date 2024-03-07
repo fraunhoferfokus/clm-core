@@ -29,7 +29,7 @@ https://github.com/fraunhoferfokus/clm-core/assets/135810890/87cd557e-3214-4b13-
 This is the core module from which all other microservices inherit to extend their own functionality. The focus here is on user and rights management as well as the relationship model. Together with the other six services, this forms the Open-Core package of the Common Learning Middleware.
 
 ## Requirements
-- MariaDB, set up locally. This service leverages a database (DB) as the cornerstone for storing documents persistently. To establish a connection with MariaDB, it is essential that the database is secured through username and password authentication. Therefore, users are required to create a database within their MariaDB setup and configure it with a username and password for access control
+- MariaDB, set up locally. This service leverages a database (DB) as the cornerstone for storing documents persistently. To establish a connection with MariaDB, it is essential that the database is secured through username and password authentication. Therefore, in order to run this service it is  required to create a database within the MariaDB and configure it with a username and password for access control
   * MariaDB Installation: https://mariadb.com/kb/en/getting-installing-and-upgrading-mariadb/
   * For setting up the password of a user: https://mariadb.com/kb/en/set-password/
   
