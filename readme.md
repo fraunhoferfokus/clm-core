@@ -83,7 +83,7 @@ The clm-core module includes the management of the following resources:
 This service functions as a web microservice that can be orchestrated through a gateway and as an npm package to provide functionalities to other CLM extensions. A microservice can build upon the classes/types/interfaces of this service to extend basic functionalities.
 
 ## Setup for Testing the Webserver
-1. This service  uses the db as a foundation for persisting the documents. For connecting to the mariadb, the service expects the mariadb to be protected by username and password authentication. For that the user needs to setup a database in his mariadb and configure username and password. Refer to the .env table to the variable `MARIA_CONFIG` to overwrite the appropriate values. 
+1. This service leverages a database (DB) as the cornerstone for storing documents persistently. To establish a connection with MariaDB, it is essential that the database is secured through username and password authentication. Therefore, users are required to create a database within their MariaDB setup and configure it with a username and password for access control. The service's configuration can be customized by referring to the `.env` file. Within this file, the `MARIA_CONFIG` variable should be updated with the appropriate values to reflect the user's specific database settings. Refer to the `MARIA_CONFIG` variable in the table below to see which comma seperated value refers to which respective database setting.  
 2. `npm install`
 3. Copy the file `.env.default`, rename it to `.env` and overwrite necessary properties.
 
