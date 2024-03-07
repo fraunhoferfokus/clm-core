@@ -29,7 +29,7 @@ https://github.com/fraunhoferfokus/clm-core/assets/135810890/87cd557e-3214-4b13-
 This is the core module from which all other microservices inherit to extend their own functionality. The focus here is on user and rights management as well as the relationship model. Together with the other six services, this forms the Open-Core package of the Common Learning Middleware.
 
 ## Requirements
-- MariaDB, set up locally.
+- MariaDB, set up locally
 - Node.js 20.x
 
 ### Folder Structure
@@ -83,8 +83,9 @@ The clm-core module includes the management of the following resources:
 This service functions as a web microservice that can be orchestrated through a gateway and as an npm package to provide functionalities to other CLM extensions. A microservice can build upon the classes/types/interfaces of this service to extend basic functionalities.
 
 ## Setup for Testing the Webserver
-1. `npm install`
-2. Copy `.env.default` to `.env` and overwrite necessary properties.
+1. This service  uses the db as a foundation for persisting the documents. For connecting to the mariadb, the service expects the mariadb to be protected by username and password authentication. For that the user needs to setup a database in his mariadb and configure username and password. Refer to the .env table to the variable `MARIA_CONFIG` to overwrite the appropriate values. 
+2. `npm install`
+3. Copy the file `.env.default`, rename it to `.env` and overwrite necessary properties.
 
    The following table gives an overview of the settings you can change through the environment variables:
 
@@ -105,10 +106,10 @@ This service functions as a web microservice that can be orchestrated through a 
    | `DISABLE_ERR_RESPONSE` | `true`                                                                            | No                | Flag to control whether error responses should be returned. Defaults to example value if not set.               |
    | `OIDC_PROVIDERS`       | [{"authorization_endpoint": "http://to_authorization_endpoint" }]                 | No                | Whether to allow access_token from external OIDC providers                                                      |
    | `API_TOKEN`            |                                                                                   | No                | Defaults to MGMT_SERVICE if not set. Needed to access the CLM-API
-3. `npm run dev` for development with nodemon.
-4. `npm start` for deployment.
+4. `npm run dev` for development with nodemon.
+5. `npm start` for deployment.
 
-5. Subsequently, the JSON representation of the Open-API specification should be accessible at:
+6. Subsequently, the JSON representation of the Open-API specification should be accessible at:
 
 `http://localhost:${PORT}/core/swagger`
 
