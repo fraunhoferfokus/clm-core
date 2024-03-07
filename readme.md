@@ -29,8 +29,11 @@ https://github.com/fraunhoferfokus/clm-core/assets/135810890/87cd557e-3214-4b13-
 This is the core module from which all other microservices inherit to extend their own functionality. The focus here is on user and rights management as well as the relationship model. Together with the other six services, this forms the Open-Core package of the Common Learning Middleware.
 
 ## Requirements
-- MariaDB, set up locally
-- Node.js 20.x
+- MariaDB, set up locally. This service leverages a database (DB) as the cornerstone for storing documents persistently. To establish a connection with MariaDB, it is essential that the database is secured through username and password authentication. Therefore, users are required to create a database within their MariaDB setup and configure it with a username and password for access control
+  * MariaDB Installation: https://mariadb.com/kb/en/getting-installing-and-upgrading-mariadb/
+  * For setting up the password of a user: https://mariadb.com/kb/en/set-password/
+  
+- Node.js 20.x: https://nodejs.org/en/download
 
 ### Folder Structure
 root
@@ -83,7 +86,7 @@ The clm-core module includes the management of the following resources:
 This service functions as a web microservice that can be orchestrated through a gateway and as an npm package to provide functionalities to other CLM extensions. A microservice can build upon the classes/types/interfaces of this service to extend basic functionalities.
 
 ## Setup for Testing the Webserver
-1. This service leverages a database (DB) as the cornerstone for storing documents persistently. To establish a connection with MariaDB, it is essential that the database is secured through username and password authentication. Therefore, users are required to create a database within their MariaDB setup and configure it with a username and password for access control. The service's configuration can be customized by referring to the `.env` file. Within this file, the `MARIA_CONFIG` variable should be updated with the appropriate values to reflect the user's specific database settings. Refer to the `MARIA_CONFIG` variable in the table below to see which comma seperated value refers to which respective database setting.  
+1. The service's configuration can be customized by referring to the `.env` file. Within this file, the `MARIA_CONFIG` variable should be updated with the appropriate values to reflect the user's specific database settings. Refer to the `MARIA_CONFIG` variable in the table below to see which comma seperated value refers to which respective database setting.  
 2. `npm install`
 3. Copy the file `.env.default`, rename it to `.env` and overwrite necessary properties.
 
