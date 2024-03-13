@@ -16,17 +16,27 @@ The middleware approach has already been tested in various settings
 
 ### Video Explanation
 
-The following two videos explain CLM from the perspective of a user and a provider.
+The following video explain CLM from the perspective of a user.
 
 #### Short explanation video of the user perspective (German only)
 https://github.com/fraunhoferfokus/clm-core/assets/135810890/44a340ab-1d86-4930-9c08-bffe457bc222
 
-#### Short explanation video of the perspective a content or infrastructure provider (German only)
-https://github.com/fraunhoferfokus/clm-core/assets/135810890/87cd557e-3214-4b13-b49d-703f9eccca7d
+
 
 
 ## CLM-CORE
 This is the core module from which all other microservices inherit to extend their own functionality. The focus here is on user and rights management as well as the relationship model. Together with the other six services, this forms the Open-Core package of the Common Learning Middleware.
+
+## Open-Core
+Submodules which extend the basic functionalities with additional features are part of the Open-Core package of the Common Learning Middlewar
+ and are listed below:
+* [clm-core (this module)](https://github.com/fraunhoferfokus/clm-core): Description above
+* [clm-ext-service_providers](https://github.com/fraunhoferfokus/clm-ext-service_providers): This service is utilized for managing service providers. In the CLM framework, service providers act as an abstraction layer. They are responsible for registering launchable tools with CLM and making these tools accessible to learners through enrollments. A single service provider can encompass a variety of launchable tools. The configuration of the service provider is transmitted to these tools, unless a tool has its own specific configuration defined.
+* [clm-ext-tools](https://github.com/fraunhoferfokus/clm-ext-tools): This service facilitates the management of Launchable Tools. Launchable Tools are those that are made available by CLM providers through supported standards. Currently, the standards supported are LTI 1.1, LTI 1.3, and CMI5. A Launchable Tool is never assigned directly to a learner or a group; instead, it is always associated within the context of a Learning Object.
+* [clm-ext-learning_objects](https://confluencesrv.fokus.fraunhofer.de/display/LearnTech/CLM+Open-Core): This service facilitates the management of learning objects. Learning objects are essentially courses, which can be nested within each other as needed. A learning object becomes a 'launchable object' when it is linked to a tool capable of being launched. Enrollments to these learning or launchable objects can be made via existing users and groups. Once enrolled, a user is authorized to access and utilize the associated tool.
+* [clm-ext-launch](https://github.com/fraunhoferfokus/clm-ext-launch): This service is used to allow clients to execute a launch request (LTI, CMI5) and then display the content in the client system. This service can also translate between different launch specifications offered by the different tools. The groups/user assignments determine whether a content is launched for the context of a user.
+* [clm-ext-tracedata](https://github.com/fraunhoferfokus/clm-ext-tracedata): This service is utilized for persisting xAPI statements from learners when they submit learning activities through a content provider. It routes the appropriate statements to the associated learning records stores based on group affiliations.
+* [clm-ext-swagger](https://github.com/fraunhoferfokus/clm-ext-swagger): Serves as a documentation services of the Open-core package. Dynamically retrieves the Open API specification of the deployed microservices.	
 
 ## Requirements
 - MariaDB, set up locally. This service leverages a database (DB) as the cornerstone for storing documents persistently. To establish a connection with MariaDB, it is essential that the database is secured through username and password authentication. Therefore, in order to run this service it is  required to create a database within the MariaDB and configure it with a username and password for access control
