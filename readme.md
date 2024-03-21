@@ -27,9 +27,9 @@ https://github.com/fraunhoferfokus/clm-core/assets/135810890/44a340ab-1d86-4930-
 ## OPEN CLM-CORE
 This is the core module from which all other microservices inherit to extend their own functionality. The focus here is on user and rights management as well as the relationship model. Together with the other six services, this forms the Open-Core package of the Common Learning Middleware.
 
-## Submodules
 The Core of the Common Learning Middleware and selected submodules are Open Source, meaning that many relevant use cases can already be implemented in educational ecosystems. Nevertheless, there are a number of other CLM submodules that supplement the infrastructure with important additional functions, graphical interfaces, interfaces etc. and which are not currently open source. If you are interested in additional functions or premium features or if you cannot use the software under the specified license for certain reasons, please contact the CLM developers.
 
+## Submodules
 The following Open Source submodules which extend the basic functionalities with additional features are part of the Open-Core package of the Common Learning Middleware:
 * [clm-core (this module)](https://github.com/fraunhoferfokus/clm-core): Description above
 * [clm-ext-service_providers](https://github.com/fraunhoferfokus/clm-ext-service_providers): This service is utilized for managing service providers. In the CLM framework, service providers act as an abstraction layer. They are responsible for registering launchable tools with CLM and making these tools accessible to learners through enrollments. A single service provider can encompass a variety of launchable tools. The configuration of the service provider is transmitted to these tools, unless a tool has its own specific configuration defined.
