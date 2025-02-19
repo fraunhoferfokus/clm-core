@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:  
+ *  For more information please contact:
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -29,17 +29,22 @@
  */
 
 import express from 'express'
-import jwt from 'jsonwebtoken'
-import swaggerJsdoc from 'swagger-jsdoc'
-import { CONFIG } from '../config/config'
-import { AuthGuard, jwtServiceInstance, pathBDTOInstance } from '../lib/CoreLib'
-import UserDAO from '../models/User/UserDAO'
+import { AuthGuard, jwtServiceInstance, pathBDTOInstance, relationBDTOInstance } from '../lib/CoreLib'
+import SwaggerDefinition from '../services/SwaggerDefinition'
 import controller from './AuthController'
-import MgmtRoleController from './MgmtRoleController'
 import MgtmAPITokenController from './MgtmAPITokenController'
 import MgtmGroupController from './MgtmGroupController'
 import MgtmUserController from './MgtmUserController'
 import UserController from './UserController'
+import swaggerJsdoc from 'swagger-jsdoc'
+import UserDAO from '../models/User/UserDAO'
+import jwt from 'jsonwebtoken'
+import { CONFIG } from '../config/config'
+import OIDController from './OIDCController'
+import MgmtRoleController from './MgmtRoleController'
+import { extModelFetchInstance } from '../api/ExtModelFetcher'
+import ResourceController from './ResourceController'
+import { CrudAccess } from '../handlers/AuthGuard'
 /**
  * @openapi
  * components:
@@ -131,22 +136,41 @@ const EXCLUDED_PATHS = [
     `${basePath}/roles/:id`,
     `${basePath}/users/verifyToken/:tokenId`,
     `${basePath}/mgmt/consumers/:id/confirm`,
+    `${basePath}/sso/oidc`,
     `${basePath}/sso/success`,
+    `${basePath}/sso/oidc/backend/login`,
+    `${basePath}/sso/oidc/access_token_by_code`,
     `/health`
 ]
-
-
+EntryPointController.use('/sso/oidc', OIDController.router)
 EntryPointController.use(AuthGuard.requireAPIToken(EXCLUDED_PATHS))
-EntryPointController.get('/mgmt/users/:id/token', (req, res, next) => {
-    return UserDAO.findById(req.params.id)
-        .then((user) => jwtServiceInstance.createToken(user))
-        .then((token) => {
-            let decodedA: any = jwt.decode(token);
-            let accessTokenExpiresIn = new Date(1000 * decodedA.exp).toJSON();
-            return res.json({ accessToken: token, accessTokenExpiresIn })
-        })
-        .catch((err) => next(err))
-})
+EntryPointController.use('/resources', ResourceController.router)
+
+// CONFIG.DISABLE_LEGACCY_FINDOO = true
+
+EntryPointController.get('/mgmt/users/:id/token',
+    CONFIG.DISABLE_LEGACCY_FINDOO ?
+        AuthGuard.permissionChecker(
+            'user',
+            [{
+                in: 'path',
+                name: 'id'
+            }],
+            CrudAccess.ReadWriteDeleteUpdate
+        ) :
+        ((req, res, next) => { return next() }) as express.Handler
+    ,
+    ((req, res, next) => {
+        return UserDAO.findById(req.params.id)
+            .then((user) => jwtServiceInstance.createToken(user))
+            .then((token) => {
+                let decodedA: any = jwt.decode(token);
+                let accessTokenExpiresIn = new Date(1000 * decodedA.exp).toJSON();
+                return res.json({ accessToken: token, accessTokenExpiresIn })
+            })
+            .catch((err) => next(err))
+    }) as express.Handler
+)
 EntryPointController.use('/mgmt/users', MgtmUserController.router)
 EntryPointController.use('/mgmt/consumers', MgtmAPITokenController.router)
 EntryPointController.use('/mgmt/groups', MgtmGroupController.router)

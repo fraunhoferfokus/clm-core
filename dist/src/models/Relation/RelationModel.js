@@ -45,6 +45,7 @@ class RelationModel extends BaseDatamodel_1.default {
         this.fromType = payload.fromType;
         this.toType = payload.toType;
         this.order = payload.order;
+        this.relationType = payload.relationType || 'have';
     }
 }
 exports.default = RelationModel;

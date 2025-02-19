@@ -41,25 +41,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const UserDAO_1 = __importDefault(require("../models/User/UserDAO"));
-const UserModel_1 = require("../models/User/UserModel");
-const GroupDAO_1 = __importDefault(require("../models/Group/GroupDAO"));
+const PathBDTO_1 = require("../models/Path/PathBDTO");
 const RoleDAO_1 = __importDefault(require("../models/Role/RoleDAO"));
 const RoleModel_1 = require("../models/Role/RoleModel");
-const ConsumerDAO_1 = __importDefault(require("../models/ServiceConsumer/ConsumerDAO"));
-const RelationDAO_1 = __importDefault(require("../models/Relation/RelationDAO"));
-const PathBDTO_1 = require("../models/Path/PathBDTO");
+const UserDAO_1 = __importDefault(require("../models/User/UserDAO"));
+const UserModel_1 = require("../models/User/UserModel");
 const config_1 = require("./config");
 //create Admin User if not exists
 function configureDependencies(app, excludedPaths) {
     return __awaiter(this, void 0, void 0, function* () {
         const rootUser = config_1.CONFIG.CLM_ROOT_USER;
         const rootPassword = config_1.CONFIG.CLM_ROOT_PASSWORD;
-        yield RoleDAO_1.default.init();
-        yield UserDAO_1.default.init();
-        yield RelationDAO_1.default.init();
-        yield ConsumerDAO_1.default.init();
-        yield GroupDAO_1.default.init();
         let selfRole = (yield RoleDAO_1.default.findByAttributes({ displayName: "Self" }))[0];
         if (!selfRole)
             selfRole = yield RoleDAO_1.default.insert(new RoleModel_1.RoleModel({

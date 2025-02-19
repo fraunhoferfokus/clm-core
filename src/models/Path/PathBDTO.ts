@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:  
+ *  For more information please contact:
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -43,7 +43,11 @@ import ConsumerModel from '../ServiceConsumer/ConsumerModel';
  * The instance {@link pathBDTOInstance} is provided.
  * Uses as default {@link MariaAdapter} for persistence layer
 */
-export class PathBDTO extends BaseBackendDTO<PathModel>{
+export class PathBDTO extends BaseBackendDTO<PathModel> {
+
+
+   
+
 
     /**
      * Persists all existing routes of the express app in the database
@@ -51,9 +55,10 @@ export class PathBDTO extends BaseBackendDTO<PathModel>{
      * @param ECLUDED_PATHS - array of paths which should not be registered in the database. 
      * @returns 
      */
-    async registerRoutes(app: any, ECLUDED_PATHS: string[], MGMT_TOKEN: string = 'MGMT_SERVICE', userId: string = "fame@fokus.fraunhofer.de") {
-        await PathDAO.init()
-        const expressPaths = listEndpoints(app).map((obj) => obj.path)
+    async registerRoutes(app: any, ECLUDED_PATHS: string[], MGMT_TOKEN: string = 'MGMT_SERVICE', userId: string = "fame@fokus.fraunhofer.de", TO_BE_PROTECTED?: string[]) {
+        const expressPaths = TO_BE_PROTECTED || listEndpoints(app).map((obj) => (obj.path))
+
+
         let promises = []
         for (let path of expressPaths) {
             promises.push(

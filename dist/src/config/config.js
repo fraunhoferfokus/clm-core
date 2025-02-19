@@ -32,6 +32,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CONFIG = void 0;
 exports.CONFIG = {
     ENV: process.env.ENV || 'dev',
+    DISABLE_LEGACCY_FINDOO: process.env.DISABLE_LEGACCY_FINDOO || false,
+    PG_CONFIG: process.env.PG_CONFIG || 'localhost|5432|clm|root|12345',
     MARIA_CONFIG: process.env.MARIA_CONFIG || 'localhost|3306|clm|root|12345',
     PORT: process.env.PORT || 3000,
     BASE_PATH: process.env.BASE_PATH || '/core',
@@ -43,6 +45,7 @@ exports.CONFIG = {
     SMTP_PORT: process.env.SMTP_PORT || '',
     SMTP_USER: process.env.SMTP_USER || '',
     SMTP_PASS: process.env.SMTP_PASS || '',
+    VERBOSE: process.env.VERBOSE || 'false',
     DISABLE_ERR_RESPONSE: process.env.DISABLE_ERR_RESPONSE || false,
     TOKEN_SECRET: process.env.TOKEN_SECRET || 'secret',
     REDIS_CONFIG: process.env.REDIS_CONFIG || 'localhost|6379',

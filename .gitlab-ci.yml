@@ -1,0 +1,39 @@
+variables:
+  DOCKER_IMAGE_NAME: dockerhub.fokus.fraunhofer.de:5000/learning-technologies/clm-framework/clm-core
+  DOCKER_TLS_CERTDIR: "/certs"
+
+stages:
+  - build_push
+
+default:
+  image: docker:24.0.5
+  tags:
+    - build_docker
+  services:
+    - docker:24.0.5-dind
+  before_script:
+    - docker info
+
+build_push_image:
+  stage: build_push
+  image: docker:latest
+  tags:
+    - build_docker
+  services:
+    - docker:dind
+  script:
+    - echo "Building Docker image..."
+    - docker login dockerhub.fokus.fraunhofer.de:5000 -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+    - docker build -t $DOCKER_IMAGE_NAME:latest .
+    - echo "Pushing Docker image..."
+    - docker login dockerhub.fokus.fraunhofer.de:5000 -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+    - >
+      if docker pull $DOCKER_IMAGE_NAME:latest; then
+        IMAGE_TAG=$CI_COMMIT_SHORT_SHA
+      else
+        IMAGE_TAG="latest"
+      fi
+    - docker tag $DOCKER_IMAGE_NAME:latest $DOCKER_IMAGE_NAME:$IMAGE_TAG
+    - docker push $DOCKER_IMAGE_NAME:$IMAGE_TAG
+  only:
+    - dev

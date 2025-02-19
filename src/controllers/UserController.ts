@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:  
+ *  For more information please contact:
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,7 +27,6 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
 import BaseModelController from "./BaseModelController";
 import { UserModel } from '../models/User/UserModel';
 import UserFDTO from "../models/User/UserFDTO";
@@ -77,7 +76,7 @@ class UserController extends BaseModelController<typeof UserDAO, UserModel, User
                 const user = req.requestingUser
                 return RelationBDTO.getUsersGroups(user?._id!).then((groups) => {
                     let adminGroup = []
-                    if(user?.isSuperAdmin) adminGroup.push('SUPER-ADMIN')
+                    if (user?.isSuperAdmin) adminGroup.push('SUPER-ADMIN')
                     res.json([...new Set([...groups.map((group) => group.role), ...adminGroup])])
                 })
             } catch (err) {
@@ -261,32 +260,6 @@ controller.router.get('/:id/permissions', controller.usersPermissions())
 controller.router.get('/userInfo', controller.getOwnUserInformation)
 
 
-
-/**
- * @openapi
- * /core/users/{userId}:
- *   get:
- *     tags:
- *       - pblc
- *     description: Get own user information
- *     summary: Get own user information
- *     parameters:
- *       - $ref: '#/components/parameters/accessToken'
- *       - in: path
- *         name: userId
- *         description: id of the user
- *         required: true
- *         schema:
- *            type: string
- *     responses:
- *       200:
- *         description: Getting user information
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/user'
- */
-controller.router.use('/:id', AuthGuard.requireUserAuthentication({ sameUserAsId: true }))
 
 
 /**
@@ -486,6 +459,31 @@ controller.router.post('/', checkSchema({
 
 }))
 
+/**
+ * @openapi
+ * /core/users/{userId}:
+ *   get:
+ *     tags:
+ *       - pblc
+ *     description: Get own user information
+ *     summary: Get own user information
+ *     parameters:
+ *       - $ref: '#/components/parameters/accessToken'
+ *       - in: path
+ *         name: userId
+ *         description: id of the user
+ *         required: true
+ *         schema:
+ *            type: string
+ *     responses:
+ *       200:
+ *         description: Getting user information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/user'
+ */
+controller.router.use('/:id', AuthGuard.requireUserAuthentication({ sameUserAsId: true }))
 
 
 controller.activateStandardRouting();

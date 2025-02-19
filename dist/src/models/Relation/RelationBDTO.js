@@ -59,14 +59,6 @@ class RelationBDTO {
         this.adapter = adapter;
     }
     /**
-     * {@inheritDoc BaseDAO.init}
-     */
-    init() {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.adapter.init();
-        });
-    }
-    /**
      * Creates a new relation between two nodes
      * @param relation -
      * @param checkRecursivity - Checks whether a recursive dependency exists in the graph

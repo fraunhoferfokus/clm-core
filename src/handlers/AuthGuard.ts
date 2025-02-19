@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:  
+ *  For more information please contact:
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -54,7 +54,22 @@ let HTTP_METHODS_CRUD_MAPPER = {
 }
 
 
-
+export enum CrudAccess {
+    Read = 1 << 0, // 1 
+    Write = 1 << 1, // 2
+    Delete = 1 << 2, // 4
+    Update = 1 << 3, // 8
+    ReadWrite = Read | Write, // 3
+    ReadDelete = Read | Delete,
+    ReadUpdate = Read | Update,
+    ReadWriteDelete = Read | Write | Delete,
+    ReadWriteUpdate = Read | Write | Update,
+    ReadWriteDeleteUpdate = Read | Write | Delete | Update,
+    WriteDelete = Write | Delete,
+    WriteUpdate = Write | Update,
+    WriteDeleteUpdate = Write | Delete | Update,
+    DeleteUpdate = Delete | Update
+}
 
 /**
  * @public
@@ -167,7 +182,6 @@ export class AuthGuard {
 
 
             } catch (err) {
-
                 return next(err)
             }
 
@@ -226,9 +240,14 @@ export class AuthGuard {
      * Ensures that a route can only accessed when a user has a specific role
      * @param role - The minimum required role to access that role {@link Role}
      * @param resources - An array of resources which need to be authorized
+     * @param requiredCrud - For individual Permission which is required to execute to the target ressource
      * @returns 
      */
-    static permissionChecker(ressource: keyof RessourcePermissions, targetedIds: { in: 'path' | 'body', name: string }[] = []): express.Handler[] {
+    static permissionChecker(
+        ressource: keyof RessourcePermissions,
+        targetedIds: { in: 'path' | 'body', name: string }[] = [],
+        requiredCrud?: CrudAccess
+    ): express.Handler[] {
         return [...this.requireUserAuthentication(),
         async (req, res, next) => {
             if (req.requestingUser?.isSuperAdmin) return next()
@@ -240,7 +259,7 @@ export class AuthGuard {
 
 
             const method = req.method.toUpperCase()
-            let crudPermission = HTTP_METHODS_CRUD_MAPPER[method as keyof typeof HTTP_METHODS_CRUD_MAPPER]
+            let crudPermission = requiredCrud || HTTP_METHODS_CRUD_MAPPER[method as keyof typeof HTTP_METHODS_CRUD_MAPPER]
 
             const userIsInGroups = (await RelationBDTO.findAll()).filter((relation) => relation.toId === req.requestingUser?._id && relation.fromType === 'group')
 

@@ -54,6 +54,8 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = require("../config/config");
 const OIDCController_1 = __importDefault(require("./OIDCController"));
 const MgmtRoleController_1 = __importDefault(require("./MgmtRoleController"));
+const ResourceController_1 = __importDefault(require("./ResourceController"));
+const AuthGuard_1 = require("../handlers/AuthGuard");
 /**
  * @openapi
  * components:
@@ -152,7 +154,14 @@ const EXCLUDED_PATHS = [
 ];
 EntryPointController.use('/sso/oidc', OIDCController_1.default.router);
 EntryPointController.use(CoreLib_1.AuthGuard.requireAPIToken(EXCLUDED_PATHS));
-EntryPointController.get('/mgmt/users/:id/token', (req, res, next) => {
+EntryPointController.use('/resources', ResourceController_1.default.router);
+// CONFIG.DISABLE_LEGACCY_FINDOO = true
+EntryPointController.get('/mgmt/users/:id/token', config_1.CONFIG.DISABLE_LEGACCY_FINDOO ?
+    CoreLib_1.AuthGuard.permissionChecker('user', [{
+            in: 'path',
+            name: 'id'
+        }], AuthGuard_1.CrudAccess.ReadWriteDeleteUpdate) :
+    ((req, res, next) => { return next(); }), ((req, res, next) => {
     return UserDAO_1.default.findById(req.params.id)
         .then((user) => CoreLib_1.jwtServiceInstance.createToken(user))
         .then((token) => {
@@ -161,7 +170,7 @@ EntryPointController.get('/mgmt/users/:id/token', (req, res, next) => {
         return res.json({ accessToken: token, accessTokenExpiresIn });
     })
         .catch((err) => next(err));
-});
+}));
 EntryPointController.use('/mgmt/users', MgtmUserController_1.default.router);
 EntryPointController.use('/mgmt/consumers', MgtmAPITokenController_1.default.router);
 EntryPointController.use('/mgmt/groups', MgtmGroupController_1.default.router);

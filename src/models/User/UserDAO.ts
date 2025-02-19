@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:  
+ *  For more information please contact:
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -34,8 +34,9 @@ import RelationModel from "../Relation/RelationModel";
 import { UserModel } from "./UserModel";
 import GroupDAO from "../Group/GroupDAO";
 import RelationDAO from "../Relation/RelationDAO";
+import PgAdapter from "../PostgreSQLAdapter";
 
-const TABLENAME = 'user'
+const TABLENAME = 'users'
 
 class UserDAO extends BaseDAO<UserModel>{
 
@@ -69,7 +70,7 @@ class UserDAO extends BaseDAO<UserModel>{
 
 }
 
-
-
 export default new UserDAO(TABLENAME, UserModel)
+
+
 

@@ -73,7 +73,7 @@ class AuthController {
             }))(req, res, next);
         };
         this.refreshSession = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
+            var _a, _b, _c, _d;
             let header = req.header('x-refresh-token');
             const token = header && header.toLowerCase().trim() !== '' && header !== 'undefined' ? header : null;
             if (!token)
@@ -99,7 +99,9 @@ class AuthController {
                     const idp_access_token = response.data.access_token;
                     return res.json({
                         access_token: idp_access_token,
-                        expires_in: response.data.expires_in
+                        expires_in: response.data.expires_in,
+                        refresh_token: (_a = response === null || response === void 0 ? void 0 : response.data) === null || _a === void 0 ? void 0 : _a.refresh_token,
+                        refres_token_expires_in: (_b = response === null || response === void 0 ? void 0 : response.data) === null || _b === void 0 ? void 0 : _b.refresh_token_expires_in
                     });
                 }
                 else {
@@ -116,8 +118,8 @@ class AuthController {
             }
             catch (err) {
                 return next({
-                    status: ((_a = err === null || err === void 0 ? void 0 : err.response) === null || _a === void 0 ? void 0 : _a.status) || 401,
-                    message: ((_b = err === null || err === void 0 ? void 0 : err.response) === null || _b === void 0 ? void 0 : _b.data) || 'IdP validation error with provided token...'
+                    status: ((_c = err === null || err === void 0 ? void 0 : err.response) === null || _c === void 0 ? void 0 : _c.status) || 401,
+                    message: ((_d = err === null || err === void 0 ? void 0 : err.response) === null || _d === void 0 ? void 0 : _d.data) || 'IdP validation error with provided token...'
                 });
             }
         });

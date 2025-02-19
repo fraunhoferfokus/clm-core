@@ -37,7 +37,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 class BaseBackendDTO {
     constructor(adapter) {
         this.adapter = adapter;
-        this.adapter.init();
     }
     /**
      * @returns

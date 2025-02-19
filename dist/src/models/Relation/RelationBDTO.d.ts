@@ -78,10 +78,6 @@ export declare class RelationBDTO {
     adapter: AdapterInterface<RelationModel>;
     constructor(adapter: AdapterInterface<RelationModel>);
     /**
-     * {@inheritDoc BaseDAO.init}
-     */
-    init(): Promise<void>;
-    /**
      * Creates a new relation between two nodes
      * @param relation -
      * @param checkRecursivity - Checks whether a recursive dependency exists in the graph

@@ -1,5 +1,7 @@
 export declare const CONFIG: {
     ENV: string;
+    DISABLE_LEGACCY_FINDOO: string | boolean;
+    PG_CONFIG: string;
     MARIA_CONFIG: string;
     PORT: string | number;
     BASE_PATH: string;
@@ -11,6 +13,7 @@ export declare const CONFIG: {
     SMTP_PORT: string;
     SMTP_USER: string;
     SMTP_PASS: string;
+    VERBOSE: string;
     DISABLE_ERR_RESPONSE: string | boolean;
     TOKEN_SECRET: string;
     REDIS_CONFIG: string;

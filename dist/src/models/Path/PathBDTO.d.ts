@@ -14,7 +14,7 @@ export declare class PathBDTO extends BaseBackendDTO<PathModel> {
      * @param ECLUDED_PATHS - array of paths which should not be registered in the database.
      * @returns
      */
-    registerRoutes(app: any, ECLUDED_PATHS: string[], MGMT_TOKEN?: string, userId?: string): Promise<[ConsumerModel]>;
+    registerRoutes(app: any, ECLUDED_PATHS: string[], MGMT_TOKEN?: string, userId?: string, TO_BE_PROTECTED?: string[]): Promise<[ConsumerModel]>;
 }
 /**
  * @public

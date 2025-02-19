@@ -1,4 +1,3 @@
-
 /* -----------------------------------------------------------------------------
  *  Copyright (c) 2023, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
  *
@@ -12,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -20,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:  
+ *  For more information please contact:
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -28,9 +27,10 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
 export const CONFIG = {
     ENV: process.env.ENV || 'dev',
+    DISABLE_LEGACCY_FINDOO: process.env.DISABLE_LEGACCY_FINDOO || false,
+    PG_CONFIG: process.env.PG_CONFIG || 'localhost|5432|clm|root|12345',
     MARIA_CONFIG: process.env.MARIA_CONFIG || 'localhost|3306|clm|root|12345',
     PORT: process.env.PORT || 3000,
     BASE_PATH: process.env.BASE_PATH || '/core',
@@ -42,11 +42,14 @@ export const CONFIG = {
     SMTP_PORT: process.env.SMTP_PORT || '',
     SMTP_USER: process.env.SMTP_USER || '',
     SMTP_PASS: process.env.SMTP_PASS || '',
+    VERBOSE: process.env.VERBOSE || 'false',
     DISABLE_ERR_RESPONSE: process.env.DISABLE_ERR_RESPONSE || false,
     TOKEN_SECRET: process.env.TOKEN_SECRET || 'secret',
     REDIS_CONFIG: process.env.REDIS_CONFIG || 'localhost|6379',
     OIDC_PROVIDERS: JSON.parse(
         process.env.OIDC_PROVIDERS || `[]`
     ),
-    API_TOKEN: process.env.API_TOKEN || 'MGMT_SERVICE'
+    ODIC_CLIENTS: JSON.parse(
+        process.env.OIDC_CLIENTS || `[]`
+    ),
 }

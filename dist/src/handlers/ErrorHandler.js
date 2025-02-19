@@ -35,13 +35,9 @@ const config_1 = require("../config/config");
  * @public
  */
 const errHandler = (err, req, res, next) => {
-    var _a, _b, _c;
-    if (config_1.CONFIG.DISABLE_ERR_RESPONSE === 'true') {
-        console.error((err === null || err === void 0 ? void 0 : err.message) || JSON.stringify(err));
-        return res.status((_a = err.status) !== null && _a !== void 0 ? _a : 500).send();
-    }
-    else {
-        return res.status((_b = err.status) !== null && _b !== void 0 ? _b : 500).json({ message: (_c = err === null || err === void 0 ? void 0 : err.message) !== null && _c !== void 0 ? _c : err });
-    }
+    var _a;
+    if (config_1.CONFIG.VERBOSE === 'true')
+        console.error("Full error:", JSON.stringify(err, null, 2));
+    return res.status((_a = err.status) !== null && _a !== void 0 ? _a : 500).json({ message: (err === null || err === void 0 ? void 0 : err.message) || 'Some error occured. Enable `VEBOSE` flag for the container and check the logs.' });
 };
 exports.default = errHandler;

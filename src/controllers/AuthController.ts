@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:  
+ *  For more information please contact:
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -28,14 +28,21 @@
  * -----------------------------------------------------------------------------
  */
 
-import axios from 'axios';
-import express from 'express';
-import jwt from 'jsonwebtoken';
-import { CONFIG } from '../config/config';
+import express from 'express'
+import passport from '../passport/passport'
+import { jwtServiceInstance } from '../services/jwtService'
+import jwt from 'jsonwebtoken'
 import UserDAO from '../models/User/UserDAO';
-import passport from '../passport/passport';
-import { jwtServiceInstance } from '../services/jwtService';
+import SwaggerDefinition from '../services/SwaggerDefinition';
+import { CONFIG } from '../config/config';
+import axios from 'axios';
 const OIDC_PROVIDERS = CONFIG.OIDC_PROVIDERS
+
+
+const basePath = CONFIG.BASE_PATH || '/core'
+const baseLocation = `${basePath}/authentication`
+
+
 
 class AuthController {
 
@@ -158,11 +165,13 @@ class AuthController {
                         }
                     }
                 )
-                
+
                 const idp_access_token = response.data.access_token
                 return res.json({
                     access_token: idp_access_token,
-                    expires_in: response.data.expires_in
+                    expires_in: response.data.expires_in,
+                    refresh_token: response?.data?.refresh_token,
+                    refres_token_expires_in: response?.data?.refresh_token_expires_in
                 })
             } else {
                 return UserDAO.findById(decodedJWT.sub)

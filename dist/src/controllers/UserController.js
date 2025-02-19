@@ -256,31 +256,6 @@ controller.router.get('/:id/permissions', controller.usersPermissions());
 controller.router.get('/userInfo', controller.getOwnUserInformation);
 /**
  * @openapi
- * /core/users/{userId}:
- *   get:
- *     tags:
- *       - pblc
- *     description: Get own user information
- *     summary: Get own user information
- *     parameters:
- *       - $ref: '#/components/parameters/accessToken'
- *       - in: path
- *         name: userId
- *         description: id of the user
- *         required: true
- *         schema:
- *            type: string
- *     responses:
- *       200:
- *         description: Getting user information
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/user'
- */
-controller.router.use('/:id', AuthGuard_1.AuthGuard.requireUserAuthentication({ sameUserAsId: true }));
-/**
- * @openapi
  * /core/users/me/groups:
  *   get:
  *     tags:
@@ -467,5 +442,30 @@ controller.router.post('/', (0, express_validator_1.checkSchema)({
         }
     }
 }));
+/**
+ * @openapi
+ * /core/users/{userId}:
+ *   get:
+ *     tags:
+ *       - pblc
+ *     description: Get own user information
+ *     summary: Get own user information
+ *     parameters:
+ *       - $ref: '#/components/parameters/accessToken'
+ *       - in: path
+ *         name: userId
+ *         description: id of the user
+ *         required: true
+ *         schema:
+ *            type: string
+ *     responses:
+ *       200:
+ *         description: Getting user information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/user'
+ */
+controller.router.use('/:id', AuthGuard_1.AuthGuard.requireUserAuthentication({ sameUserAsId: true }));
 controller.activateStandardRouting();
 exports.default = controller;

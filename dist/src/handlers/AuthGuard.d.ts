@@ -1,5 +1,21 @@
 import express from 'express';
 import { RessourcePermissions } from '../models/Role/RoleModel';
+export declare enum CrudAccess {
+    Read = 1,
+    Write = 2,
+    Delete = 4,
+    Update = 8,
+    ReadWrite = 3,
+    ReadDelete = 5,
+    ReadUpdate = 9,
+    ReadWriteDelete = 7,
+    ReadWriteUpdate = 11,
+    ReadWriteDeleteUpdate = 15,
+    WriteDelete = 6,
+    WriteUpdate = 10,
+    WriteDeleteUpdate = 14,
+    DeleteUpdate = 12
+}
 /**
  * @public
  * (Optional) payload for the method {@link AuthGuard.permissionChecker}
@@ -55,12 +71,13 @@ export declare class AuthGuard {
      * Ensures that a route can only accessed when a user has a specific role
      * @param role - The minimum required role to access that role {@link Role}
      * @param resources - An array of resources which need to be authorized
+     * @param requiredCrud - For individual Permission which is required to execute to the target ressource
      * @returns
      */
     static permissionChecker(ressource: keyof RessourcePermissions, targetedIds?: {
         in: 'path' | 'body';
         name: string;
-    }[]): express.Handler[];
+    }[], requiredCrud?: CrudAccess): express.Handler[];
     /**
      * Require super-admin to access certain routes
      * @returns

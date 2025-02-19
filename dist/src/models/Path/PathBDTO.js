@@ -62,10 +62,9 @@ class PathBDTO extends BaseBackendDTO_1.default {
      * @param ECLUDED_PATHS - array of paths which should not be registered in the database.
      * @returns
      */
-    registerRoutes(app, ECLUDED_PATHS, MGMT_TOKEN = 'MGMT_SERVICE', userId = "fame@fokus.fraunhofer.de") {
+    registerRoutes(app, ECLUDED_PATHS, MGMT_TOKEN = 'MGMT_SERVICE', userId = "fame@fokus.fraunhofer.de", TO_BE_PROTECTED) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield PathDAO_1.default.init();
-            const expressPaths = (0, express_list_endpoints_1.default)(app).map((obj) => obj.path);
+            const expressPaths = TO_BE_PROTECTED || (0, express_list_endpoints_1.default)(app).map((obj) => (obj.path));
             let promises = [];
             for (let path of expressPaths) {
                 promises.push(this.findById(path).then((path) => {

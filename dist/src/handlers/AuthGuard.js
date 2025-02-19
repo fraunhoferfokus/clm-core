@@ -42,7 +42,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AuthGuard = void 0;
+exports.AuthGuard = exports.CrudAccess = void 0;
 const url_pattern_1 = __importDefault(require("url-pattern"));
 const RelationBDTO_1 = __importDefault(require("../models/Relation/RelationBDTO"));
 const ConsumerDAO_1 = __importDefault(require("../models/ServiceConsumer/ConsumerDAO"));
@@ -60,6 +60,23 @@ let HTTP_METHODS_CRUD_MAPPER = {
     PATCH: 4,
     DELETE: 8,
 };
+var CrudAccess;
+(function (CrudAccess) {
+    CrudAccess[CrudAccess["Read"] = 1] = "Read";
+    CrudAccess[CrudAccess["Write"] = 2] = "Write";
+    CrudAccess[CrudAccess["Delete"] = 4] = "Delete";
+    CrudAccess[CrudAccess["Update"] = 8] = "Update";
+    CrudAccess[CrudAccess["ReadWrite"] = 3] = "ReadWrite";
+    CrudAccess[CrudAccess["ReadDelete"] = 5] = "ReadDelete";
+    CrudAccess[CrudAccess["ReadUpdate"] = 9] = "ReadUpdate";
+    CrudAccess[CrudAccess["ReadWriteDelete"] = 7] = "ReadWriteDelete";
+    CrudAccess[CrudAccess["ReadWriteUpdate"] = 11] = "ReadWriteUpdate";
+    CrudAccess[CrudAccess["ReadWriteDeleteUpdate"] = 15] = "ReadWriteDeleteUpdate";
+    CrudAccess[CrudAccess["WriteDelete"] = 6] = "WriteDelete";
+    CrudAccess[CrudAccess["WriteUpdate"] = 10] = "WriteUpdate";
+    CrudAccess[CrudAccess["WriteDeleteUpdate"] = 14] = "WriteDeleteUpdate";
+    CrudAccess[CrudAccess["DeleteUpdate"] = 12] = "DeleteUpdate";
+})(CrudAccess = exports.CrudAccess || (exports.CrudAccess = {}));
 /**
  * Static class which exposes express-auth-middlewares
  * @public
@@ -114,9 +131,10 @@ class AuthGuard {
      * Ensures that a route can only accessed when a user has a specific role
      * @param role - The minimum required role to access that role {@link Role}
      * @param resources - An array of resources which need to be authorized
+     * @param requiredCrud - For individual Permission which is required to execute to the target ressource
      * @returns
      */
-    static permissionChecker(ressource, targetedIds = []) {
+    static permissionChecker(ressource, targetedIds = [], requiredCrud) {
         return [...this.requireUserAuthentication(),
             (req, res, next) => __awaiter(this, void 0, void 0, function* () {
                 var _b, _c;
@@ -126,7 +144,7 @@ class AuthGuard {
                 const usersPermissions = yield RelationBDTO_1.default.getUsersPermissions((_c = req.requestingUser) === null || _c === void 0 ? void 0 : _c._id);
                 req.requestingUser.permissions = usersPermissions;
                 const method = req.method.toUpperCase();
-                let crudPermission = HTTP_METHODS_CRUD_MAPPER[method];
+                let crudPermission = requiredCrud || HTTP_METHODS_CRUD_MAPPER[method];
                 const userIsInGroups = (yield RelationBDTO_1.default.findAll()).filter((relation) => { var _b; return relation.toId === ((_b = req.requestingUser) === null || _b === void 0 ? void 0 : _b._id) && relation.fromType === 'group'; });
                 let allowedAction = false;
                 for (const userIsInGroup of userIsInGroups) {

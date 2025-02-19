@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:  
+ *  For more information please contact:
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -28,29 +28,17 @@
  * -----------------------------------------------------------------------------
  */
 
-import UserDAO from "../models/User/UserDAO"
-import { UserModel } from "../models/User/UserModel"
-import GroupDAO from "../models/Group/GroupDAO"
+import { pathBDTOInstance } from "../models/Path/PathBDTO"
 import RoleDAO from "../models/Role/RoleDAO"
 import { RoleModel } from "../models/Role/RoleModel"
-import ConsumerDAO from "../models/ServiceConsumer/ConsumerDAO"
-import ConsumerModel from "../models/ServiceConsumer/ConsumerModel"
-import PathDAO from "../models/Path/PathDAO"
-import RelationDAO from "../models/Relation/RelationDAO"
-import { pathBDTOInstance } from "../models/Path/PathBDTO"
+import UserDAO from "../models/User/UserDAO"
+import { UserModel } from "../models/User/UserModel"
 import { CONFIG } from "./config"
 //create Admin User if not exists
 
 export default async function configureDependencies(app: any, excludedPaths: string[]) {
     const rootUser = CONFIG.CLM_ROOT_USER
     const rootPassword = CONFIG.CLM_ROOT_PASSWORD
-
-    await RoleDAO.init()
-    await UserDAO.init()
-    await RelationDAO.init()
-    await ConsumerDAO.init()
-    await GroupDAO.init()
-
     let selfRole = (await RoleDAO.findByAttributes({ displayName: "Self" }))[0]
     if (!selfRole) selfRole = await RoleDAO.insert(new RoleModel({
         displayName: "Self",
@@ -118,7 +106,7 @@ export default async function configureDependencies(app: any, excludedPaths: str
         immutable: true
     }))
 
-    await pathBDTOInstance.registerRoutes(app, excludedPaths, CONFIG.API_TOKEN, rootUser)
+    await pathBDTOInstance.registerRoutes(app, excludedPaths, 'MGMT_SERVICE', rootUser)
 
     let user = (await UserDAO.findByAttributes({ email: rootUser }))[0]
     if (!user) UserDAO.insert(new UserModel({

@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:  
+ *  For more information please contact:
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -28,20 +28,15 @@
  * -----------------------------------------------------------------------------
  */
 
-import dotenv from 'dotenv'
-dotenv.config()
 import cors from 'cors'
+import dotenv from 'dotenv'
 import express from 'express'
+import path from 'path'
+import { CONFIG } from './src/config/config'
 import configureDependencies from './src/config/configureDeps'
 import EntryPointController from './src/controllers/EntryPointController'
 import errHandler from './src/handlers/ErrorHandler'
-import { CONFIG } from './src/config/config'
-import path from 'path'
-import { GroupModel, RelationModel, relationBDTOInstance } from './src/lib/CoreLib'
-import RelationDAO from './src/models/Relation/RelationDAO'
-import GroupDAO from './src/models/Group/GroupDAO'
-import RoleDAO from './src/models/Role/RoleDAO'
-import { v4 as uuidv4 } from 'uuid'
+dotenv.config()
 
 export const ROOT_DIR = process.cwd()
 
@@ -87,9 +82,13 @@ app.set('view engine', 'ejs')
 app.use(basePath, EntryPointController)
 app.use(errHandler);
 
+
+
+
 configureDependencies(app, EXCLUDED_PATHS).then(() =>
     app.listen(PORT, () => {
         console.info('Listening for core')
+
     })
 ).catch((err) => {
     console.error(JSON.stringify(err))

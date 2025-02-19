@@ -24,6 +24,10 @@ export interface iRelationModel extends iBaseDatamodel {
      * The order of the relation
      */
     order?: number;
+    /**
+     *
+     */
+    relationType?: string;
 }
 /**
  * @public
@@ -36,5 +40,6 @@ export default class RelationModel extends BaseDatamodel implements iRelationMod
     toType: string;
     order?: number;
     constructor(payload: iRelationModel);
+    relationType: string;
 }
 //# sourceMappingURL=RelationModel.d.ts.map

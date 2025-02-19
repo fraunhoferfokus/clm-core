@@ -32,7 +32,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const MariaAdapter_1 = __importDefault(require("./MariaAdapter"));
+const PostgreSQLAdapter_1 = __importDefault(require("./PostgreSQLAdapter"));
 /**
  * DAO which exposes all CRUD opeartions
  * @remarks This class is based on Java DAO. see https://www.baeldung.com/java-dao-pattern.
@@ -43,7 +43,7 @@ class BaseDAO {
     constructor(adapterOrTableName, C) {
         this.isInitialized = false;
         this.tableName = C ? adapterOrTableName : '';
-        this.adapter = C ? new MariaAdapter_1.default(adapterOrTableName, C, {}) : adapterOrTableName;
+        this.adapter = C ? new PostgreSQLAdapter_1.default(adapterOrTableName, C, {}) : adapterOrTableName;
         this.adapter.init();
     }
     /**

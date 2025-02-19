@@ -33,15 +33,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ROOT_DIR = void 0;
-const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config();
 const cors_1 = __importDefault(require("cors"));
+const dotenv_1 = __importDefault(require("dotenv"));
 const express_1 = __importDefault(require("express"));
+const path_1 = __importDefault(require("path"));
+const config_1 = require("./src/config/config");
 const configureDeps_1 = __importDefault(require("./src/config/configureDeps"));
 const EntryPointController_1 = __importDefault(require("./src/controllers/EntryPointController"));
 const ErrorHandler_1 = __importDefault(require("./src/handlers/ErrorHandler"));
-const config_1 = require("./src/config/config");
-const path_1 = __importDefault(require("path"));
+dotenv_1.default.config();
 exports.ROOT_DIR = process.cwd();
 //@ts-ignore
 global.__basedir = __dirname;

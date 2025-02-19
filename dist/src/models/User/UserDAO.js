@@ -47,7 +47,7 @@ const RelationModel_1 = __importDefault(require("../Relation/RelationModel"));
 const UserModel_1 = require("./UserModel");
 const GroupDAO_1 = __importDefault(require("../Group/GroupDAO"));
 const RelationDAO_1 = __importDefault(require("../Relation/RelationDAO"));
-const TABLENAME = 'user';
+const TABLENAME = 'users';
 class UserDAO extends BaseDAO_1.default {
     insert(payload) {
         return super.insert(payload).then((user) => {
