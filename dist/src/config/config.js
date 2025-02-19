@@ -50,5 +50,5 @@ exports.CONFIG = {
     TOKEN_SECRET: process.env.TOKEN_SECRET || 'secret',
     REDIS_CONFIG: process.env.REDIS_CONFIG || 'localhost|6379',
     OIDC_PROVIDERS: JSON.parse(process.env.OIDC_PROVIDERS || `[]`),
-    ODIC_CLIENTS: JSON.parse(process.env.OIDC_CLIENTS || `[]`),
+    API_TOKEN: process.env.API_TOKEN || 'MGMT_SERVICE'
 };
