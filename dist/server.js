@@ -1,9 +1,4 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ROOT_DIR = void 0;
 /* -----------------------------------------------------------------------------
  *  Copyright (c) 2023, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
  *
@@ -80,7 +75,7 @@ app.set('view engine', 'ejs');
 app.use(basePath, EntryPointController_1.default);
 app.use(ErrorHandler_1.default);
 (0, configureDeps_1.default)(app, EXCLUDED_PATHS).then(() => app.listen(PORT, () => {
-    console.info(`Listening for core on port ${PORT}`);
+    console.info('Listening for core');
 })).catch((err) => {
     console.error(JSON.stringify(err));
 });

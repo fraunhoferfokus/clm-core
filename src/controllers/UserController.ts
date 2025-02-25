@@ -27,6 +27,7 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
+
 import BaseModelController from "./BaseModelController";
 import { UserModel } from '../models/User/UserModel';
 import UserFDTO from "../models/User/UserFDTO";

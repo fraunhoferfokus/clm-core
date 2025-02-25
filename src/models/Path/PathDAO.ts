@@ -27,6 +27,7 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
+
  import BaseDAO from "../BaseDAO";
 import PathModel from "./PathModel";
 

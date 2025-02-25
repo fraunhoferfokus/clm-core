@@ -106,7 +106,7 @@ export default async function configureDependencies(app: any, excludedPaths: str
         immutable: true
     }))
 
-    await pathBDTOInstance.registerRoutes(app, excludedPaths, 'MGMT_SERVICE', rootUser)
+    await pathBDTOInstance.registerRoutes(app, excludedPaths, CONFIG.CLM_ROOT_CONSUMER_KEY, rootUser)
 
     let user = (await UserDAO.findByAttributes({ email: rootUser }))[0]
     if (!user) UserDAO.insert(new UserModel({

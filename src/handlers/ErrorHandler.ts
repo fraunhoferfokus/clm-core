@@ -27,6 +27,7 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
+
 import express from 'express';
 import { CONFIG } from '../config/config';
 

@@ -42,13 +42,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
-const config_1 = require("../config/config");
 const CoreLib_1 = require("../lib/CoreLib");
-const UserDAO_1 = __importDefault(require("../models/User/UserDAO"));
 const AuthController_1 = __importDefault(require("./AuthController"));
-const MgmtRoleController_1 = __importDefault(require("./MgmtRoleController"));
 const MgtmAPITokenController_1 = __importDefault(require("./MgtmAPITokenController"));
 const MgtmGroupController_1 = __importDefault(require("./MgtmGroupController"));
 const MgtmUserController_1 = __importDefault(require("./MgtmUserController"));
@@ -151,9 +146,13 @@ const EXCLUDED_PATHS = [
     `${basePath}/roles/:id`,
     `${basePath}/users/verifyToken/:tokenId`,
     `${basePath}/mgmt/consumers/:id/confirm`,
+    `${basePath}/sso/oidc`,
     `${basePath}/sso/success`,
+    `${basePath}/sso/oidc/backend/login`,
+    `${basePath}/sso/oidc/access_token_by_code`,
     `/health`
 ];
+EntryPointController.use('/sso/oidc', OIDCController_1.default.router);
 EntryPointController.use(CoreLib_1.AuthGuard.requireAPIToken(EXCLUDED_PATHS));
 EntryPointController.use('/resources', ResourceController_1.default.router);
 // CONFIG.DISABLE_LEGACCY_FINDOO = true

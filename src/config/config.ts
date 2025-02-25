@@ -27,6 +27,7 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
+
 export const CONFIG = {
     ENV: process.env.ENV || 'dev',
     DISABLE_LEGACCY_FINDOO: process.env.DISABLE_LEGACCY_FINDOO || false,
@@ -36,6 +37,7 @@ export const CONFIG = {
     BASE_PATH: process.env.BASE_PATH || '/core',
     CLM_ROOT_USER: process.env.CLM_ROOT_USER || 'admin@localhost.tld',
     CLM_ROOT_PASSWORD: process.env.CLM_ROOT_PASSWORD || 'ABC123',
+    CLM_ROOT_CONSUMER_KEY: process.env.CLM_ROOT_CONSUMER_KEY || 'MGMT_SERVICE',
     DEPLOY_URL: process.env.DEPLOY_URL || 'http://localhost/api',
     SMTP_FROM: process.env.SMTP_FROM || '',
     SMTP_HOST: process.env.SMTP_HOST || '',

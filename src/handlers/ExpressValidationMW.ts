@@ -27,6 +27,7 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
+
  import { validationResult } from 'express-validator';
 import express from 'express';
 

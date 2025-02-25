@@ -41,14 +41,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const axios_1 = __importDefault(require("axios"));
 const express_1 = __importDefault(require("express"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const config_1 = require("../config/config");
-const UserDAO_1 = __importDefault(require("../models/User/UserDAO"));
 const passport_1 = __importDefault(require("../passport/passport"));
 const jwtService_1 = require("../services/jwtService");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const UserDAO_1 = __importDefault(require("../models/User/UserDAO"));
+const config_1 = require("../config/config");
+const axios_1 = __importDefault(require("axios"));
 const OIDC_PROVIDERS = config_1.CONFIG.OIDC_PROVIDERS;
+const basePath = config_1.CONFIG.BASE_PATH || '/core';
+const baseLocation = `${basePath}/authentication`;
 class AuthController {
     constructor() {
         this.authenticateUser = (req, res, next) => {

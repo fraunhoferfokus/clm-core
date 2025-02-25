@@ -27,6 +27,7 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
+
 import { checkSchema } from "express-validator"
 import RoleDAO from "../models/Role/RoleDAO"
 

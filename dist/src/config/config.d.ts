@@ -7,6 +7,7 @@ export declare const CONFIG: {
     BASE_PATH: string;
     CLM_ROOT_USER: string;
     CLM_ROOT_PASSWORD: string;
+    CLM_ROOT_CONSUMER_KEY: string;
     DEPLOY_URL: string;
     SMTP_FROM: string;
     SMTP_HOST: string;
@@ -18,6 +19,6 @@ export declare const CONFIG: {
     TOKEN_SECRET: string;
     REDIS_CONFIG: string;
     OIDC_PROVIDERS: any;
-    API_TOKEN: string;
+    ODIC_CLIENTS: any;
 };
 //# sourceMappingURL=config.d.ts.map

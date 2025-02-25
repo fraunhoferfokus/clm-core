@@ -119,7 +119,7 @@ function configureDependencies(app, excludedPaths) {
                 strength: 3,
                 immutable: true
             }));
-        yield PathBDTO_1.pathBDTOInstance.registerRoutes(app, excludedPaths, config_1.CONFIG.API_TOKEN, rootUser);
+        yield PathBDTO_1.pathBDTOInstance.registerRoutes(app, excludedPaths, config_1.CONFIG.CLM_ROOT_CONSUMER_KEY, rootUser);
         let user = (yield UserDAO_1.default.findByAttributes({ email: rootUser }))[0];
         if (!user)
             UserDAO_1.default.insert(new UserModel_1.UserModel({

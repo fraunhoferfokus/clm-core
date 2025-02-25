@@ -39,6 +39,7 @@ exports.CONFIG = {
     BASE_PATH: process.env.BASE_PATH || '/core',
     CLM_ROOT_USER: process.env.CLM_ROOT_USER || 'admin@localhost.tld',
     CLM_ROOT_PASSWORD: process.env.CLM_ROOT_PASSWORD || 'ABC123',
+    CLM_ROOT_CONSUMER_KEY: process.env.CLM_ROOT_CONSUMER_KEY || 'MGMT_SERVICE',
     DEPLOY_URL: process.env.DEPLOY_URL || 'http://localhost/api',
     SMTP_FROM: process.env.SMTP_FROM || '',
     SMTP_HOST: process.env.SMTP_HOST || '',
@@ -50,5 +51,5 @@ exports.CONFIG = {
     TOKEN_SECRET: process.env.TOKEN_SECRET || 'secret',
     REDIS_CONFIG: process.env.REDIS_CONFIG || 'localhost|6379',
     OIDC_PROVIDERS: JSON.parse(process.env.OIDC_PROVIDERS || `[]`),
-    API_TOKEN: process.env.API_TOKEN || 'MGMT_SERVICE'
+    ODIC_CLIENTS: JSON.parse(process.env.OIDC_CLIENTS || `[]`),
 };
