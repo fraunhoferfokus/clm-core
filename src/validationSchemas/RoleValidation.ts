@@ -37,7 +37,6 @@ export const deleteRoleSchemaValidator = checkSchema({
         custom: {
             options: async (value) => {
                 try {
-                    console.log('validationg')
                     const role = await RoleDAO.findById(value)
                     if (role.immutable) return Promise.reject("Role is immutable")
                     return Promise.resolve(true)
@@ -56,7 +55,6 @@ export const updateRoleSchemaValidator = checkSchema({
         custom: {
             options: async (value) => {
                 try {
-                    console.log('validationg')
                     const role = await RoleDAO.findById(value)
                     if (role.immutable) return Promise.reject("Role is immutable")
                     return Promise.resolve(true)

@@ -41,8 +41,9 @@ export interface RessourcePermissions {
     group: CrudPermission
     user: CrudPermission
     role: CrudPermission
-    consumer: CrudPermission
-}
+    consumer: CrudPermission,
+    mcp_server: CrudPermission
+}   
 
 export enum CrudPermission {
     NONE = 0,

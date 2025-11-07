@@ -4,6 +4,7 @@ import BaseDatamodel, { iBaseDatamodel } from "../BaseDatamodel";
  * The payload which is passed to the constructor of {@link UserModel}
  */
 export interface iUserModel extends iBaseDatamodel {
+    _id?: string;
     password: string;
     familyName: string;
     givenName: string;

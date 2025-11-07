@@ -56,6 +56,8 @@ const OIDCController_1 = __importDefault(require("./OIDCController"));
 const MgmtRoleController_1 = __importDefault(require("./MgmtRoleController"));
 const ResourceController_1 = __importDefault(require("./ResourceController"));
 const AuthGuard_1 = require("../handlers/AuthGuard");
+const OIDCClientController_1 = __importDefault(require("./OIDCClientController"));
+const OIDCProviderController_1 = __importDefault(require("./OIDCProviderController"));
 /**
  * @openapi
  * components:
@@ -156,12 +158,11 @@ EntryPointController.use('/sso/oidc', OIDCController_1.default.router);
 EntryPointController.use(CoreLib_1.AuthGuard.requireAPIToken(EXCLUDED_PATHS));
 EntryPointController.use('/resources', ResourceController_1.default.router);
 // CONFIG.DISABLE_LEGACCY_FINDOO = true
-EntryPointController.get('/mgmt/users/:id/token', config_1.CONFIG.DISABLE_LEGACCY_FINDOO ?
-    CoreLib_1.AuthGuard.permissionChecker('user', [{
-            in: 'path',
-            name: 'id'
-        }], AuthGuard_1.CrudAccess.ReadWriteDeleteUpdate) :
-    ((req, res, next) => { return next(); }), ((req, res, next) => {
+EntryPointController.get('/mgmt/users/:id/token', 
+// Neue Logik: Wenn Trusted Clients erlaubt sind -> Permission Checker überspringen
+config_1.CONFIG.ALLOW_TRUSTED_CLIENTS ?
+    ((req, res, next) => next()) :
+    CoreLib_1.AuthGuard.permissionChecker('user', [{ in: 'path', name: 'id' }], AuthGuard_1.CrudAccess.ReadWriteDeleteUpdate), ((req, res, next) => {
     return UserDAO_1.default.findById(req.params.id)
         .then((user) => CoreLib_1.jwtServiceInstance.createToken(user))
         .then((token) => {
@@ -175,6 +176,8 @@ EntryPointController.use('/mgmt/users', MgtmUserController_1.default.router);
 EntryPointController.use('/mgmt/consumers', MgtmAPITokenController_1.default.router);
 EntryPointController.use('/mgmt/groups', MgtmGroupController_1.default.router);
 EntryPointController.use('/mgmt/roles', MgmtRoleController_1.default.router);
+EntryPointController.use('/mgmt/oidc-clients', OIDCClientController_1.default.router);
+EntryPointController.use('/mgmt/oidc-providers', OIDCProviderController_1.default.router);
 /**
  * @openapi
  * components:

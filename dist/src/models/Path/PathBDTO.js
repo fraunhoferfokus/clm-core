@@ -48,6 +48,7 @@ const PathDAO_1 = __importDefault(require("./PathDAO"));
 const PathModel_1 = __importDefault(require("./PathModel"));
 const ConsumerDAO_1 = __importDefault(require("../ServiceConsumer/ConsumerDAO"));
 const ConsumerModel_1 = __importDefault(require("../ServiceConsumer/ConsumerModel"));
+const config_1 = require("../../config/config");
 // if (CONFIG.ENV === 'PROD') working_dir = __dirname.replace('/dist', '')
 /**
  * @public
@@ -62,7 +63,7 @@ class PathBDTO extends BaseBackendDTO_1.default {
      * @param ECLUDED_PATHS - array of paths which should not be registered in the database.
      * @returns
      */
-    registerRoutes(app, ECLUDED_PATHS, MGMT_TOKEN = 'MGMT_SERVICE', userId = "fame@fokus.fraunhofer.de", TO_BE_PROTECTED) {
+    registerRoutes(app, ECLUDED_PATHS, MGMT_TOKEN = config_1.CONFIG.CLM_API_KEY, userId, TO_BE_PROTECTED) {
         return __awaiter(this, void 0, void 0, function* () {
             const expressPaths = TO_BE_PROTECTED || (0, express_list_endpoints_1.default)(app).map((obj) => (obj.path));
             let promises = [];
@@ -87,7 +88,7 @@ class PathBDTO extends BaseBackendDTO_1.default {
             }
             let consumer = (yield ConsumerDAO_1.default.findByAttributes({ displayName: MGMT_TOKEN }))[0];
             if (!consumer)
-                consumer = yield ConsumerDAO_1.default.insert(new ConsumerModel_1.default({ _id: MGMT_TOKEN, displayName: MGMT_TOKEN, userId, active: true, domain: "FAME", paths: [] }));
+                consumer = yield ConsumerDAO_1.default.insert(new ConsumerModel_1.default({ _id: MGMT_TOKEN, displayName: MGMT_TOKEN, userId: userId || "ROOT_API_TOKEN", active: true, domain: "FAME", paths: [] }));
             yield Promise.all([promises]);
             const paths = yield PathDAO_1.default.findAll();
             return Promise.all([

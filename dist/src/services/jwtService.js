@@ -44,7 +44,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.jwtServiceInstance = exports.JwtService = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = require("../config/config");
-const axios_1 = __importDefault(require("axios"));
+const jwksService_1 = require("./jwksService");
 const OIDC_PROVIDER = config_1.CONFIG.OIDC_PROVIDERS;
 /**
  * Service for creating access/refresh token for user and verify if a token is valid
@@ -79,13 +79,9 @@ class JwtService {
                 const provider = OIDC_PROVIDER.find((provider) => provider.authorization_endpoint.includes(iss));
                 if (!provider)
                     throw ({ message: `Invalid issuer: ${iss}! `, status: 401 });
-                // get userinformation from provider
-                yield axios_1.default.get(provider.userinfo_endpoint, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                });
-                return decoded;
+                // New: verify via JWKS instead of calling userinfo endpoint
+                const verified = yield (0, jwksService_1.verifyExternalToken)(token);
+                return verified;
             }
             else {
                 try {

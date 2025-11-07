@@ -29,15 +29,18 @@
  */
 
 export const CONFIG = {
+    ALLOWED_ISSUERS: JSON.parse(process.env.ALLOWED_ISSUERS || `[]`),
     ENV: process.env.ENV || 'dev',
-    DISABLE_LEGACCY_FINDOO: process.env.DISABLE_LEGACCY_FINDOO || false,
     PG_CONFIG: process.env.PG_CONFIG || 'localhost|5432|clm|root|12345',
+    PG_SSL_MODE: process.env.PG_SSL_MODE || 'none', // Options: 'none', 'require', 'ca'
+    PG_SSL_CA_PATH: process.env.PG_SSL_CA_PATH || '',
+    PG_POOL_PING_INTERVAL_MS: parseInt(process.env.PG_POOL_PING_INTERVAL_MS || '30000'),
     MARIA_CONFIG: process.env.MARIA_CONFIG || 'localhost|3306|clm|root|12345',
     PORT: process.env.PORT || 3000,
     BASE_PATH: process.env.BASE_PATH || '/core',
     CLM_ROOT_USER: process.env.CLM_ROOT_USER || 'admin@localhost.tld',
     CLM_ROOT_PASSWORD: process.env.CLM_ROOT_PASSWORD || 'ABC123',
-    CLM_ROOT_CONSUMER_KEY: process.env.CLM_ROOT_CONSUMER_KEY || 'MGMT_SERVICE',
+    CLM_API_KEY: process.env.CLM_API_KEY || 'MGMT_SERVICE',
     DEPLOY_URL: process.env.DEPLOY_URL || 'http://localhost/api',
     SMTP_FROM: process.env.SMTP_FROM || '',
     SMTP_HOST: process.env.SMTP_HOST || '',
@@ -54,4 +57,45 @@ export const CONFIG = {
     ODIC_CLIENTS: JSON.parse(
         process.env.OIDC_CLIENTS || `[]`
     ),
+    ALLOW_TRUSTED_CLIENTS: (() => {
+        const raw = process.env.ALLOW_TRUSTED_CLIENTS
+        if (raw === undefined || raw === null || raw === '') return true
+        return /^(1|true|yes|on)$/i.test(raw.trim())
+    })(),
+
+    // OIDC claim mapping (allows different IAM attribute naming). Defaults follow common OpenID fields and provided IAM schema
+    OIDC_CLAIM_SUB: process.env.OIDC_CLAIM_SUB || 'sub',
+    OIDC_CLAIM_EMAIL: process.env.OIDC_CLAIM_EMAIL || 'email',
+    OIDC_CLAIM_GIVEN_NAME: process.env.OIDC_CLAIM_GIVEN_NAME || 'given_name',
+    OIDC_CLAIM_FAMILY_NAME: process.env.OIDC_CLAIM_FAMILY_NAME || 'family_name',
+    OIDC_CLAIM_TITLE: process.env.OIDC_CLAIM_TITLE || 'title',
+    OIDC_CLAIM_PERSONNEL_NR: process.env.OIDC_CLAIM_PERSONNEL_NR || 'BWPersPERNR',
+    OIDC_CLAIM_TRAINING_ID: process.env.OIDC_CLAIM_TRAINING_ID || 'VLBwAusbildungsID',
+    OIDC_CLAIM_GROUPS: process.env.OIDC_CLAIM_GROUPS || 'BwSSOGroupVLBw',
+
+    // Group parsing and role mapping
+    OIDC_GROUP_ROLE_DELIMITER: process.env.OIDC_GROUP_ROLE_DELIMITER || '_',
+    // Suffix tokens expected in the groups claim
+    OIDC_GROUP_SUFFIX_LEARNER: process.env.OIDC_GROUP_SUFFIX_LEARNER || 'Learner',
+    OIDC_GROUP_SUFFIX_INSTRUCTOR: process.env.OIDC_GROUP_SUFFIX_INSTRUCTOR || 'Instructor',
+    OIDC_GROUP_SUFFIX_ADMIN: process.env.OIDC_GROUP_SUFFIX_ADMIN || 'Admin',
+    // Map suffix to internal role display names (existing roles: Learner | Instructor | OrgAdmin)
+    OIDC_ROLEMAP_LEARNER: process.env.OIDC_ROLEMAP_LEARNER || 'Learner',
+    OIDC_ROLEMAP_INSTRUCTOR: process.env.OIDC_ROLEMAP_INSTRUCTOR || 'Instructor',
+    // "Admin" in IAM will be mapped by default to internal role "OrgAdmin" to match current RoleModel type
+    OIDC_ROLEMAP_ADMIN: process.env.OIDC_ROLEMAP_ADMIN || 'OrgAdmin',
+
+    // Whether to validate/sync groups on each authenticated request (AuthGuard)
+    OIDC_SYNC_GROUPS_ON_AUTH: (() => {
+        const raw = process.env.OIDC_SYNC_GROUPS_ON_AUTH
+        if (raw === undefined || raw === null || raw === '') return true
+        return /^(1|true|yes|on)$/i.test(raw.trim())
+    })(),
+
+    // Whether to validate/sync groups on IdP refresh-token exchange
+    OIDC_SYNC_GROUPS_ON_REFRESH: (() => {
+        const raw = process.env.OIDC_SYNC_GROUPS_ON_REFRESH
+        if (raw === undefined || raw === null || raw === '') return true
+        return /^(1|true|yes|on)$/i.test(raw.trim())
+    })(),
 }

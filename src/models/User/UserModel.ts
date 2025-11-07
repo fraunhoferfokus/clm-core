@@ -37,6 +37,7 @@ import UserDAO from "./UserDAO"
  * The payload which is passed to the constructor of {@link UserModel}
  */
 export interface iUserModel extends iBaseDatamodel {
+    _id?: string
     password: string
     familyName: string
     givenName: string
@@ -81,7 +82,7 @@ export class UserModel extends BaseDatamodel implements iUserModel {
     identityId?: string | undefined
 
     constructor(payload: iUserModel) {
-        payload._id = payload.email;
+        payload._id = payload._id || payload.email;
         super(payload)
         this.password = payload.password
         this.email = payload.email

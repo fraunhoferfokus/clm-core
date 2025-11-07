@@ -222,7 +222,7 @@ export class RelationBDTO {
             let group = groups.find((group) => group._id === id)
 
             if (group) {
-                let groupHasRole = relations.find((relation) => relation.fromId === id && relation.fromType === 'group' && relation.toType === 'role')            
+                let groupHasRole = relations.find((relation) => relation.fromId === id && relation.fromType === 'group' && relation.toType === 'role')
                 let role = await RoleDAO.findById(groupHasRole!.toId)
 
                 groupPermissions.push({ ...group, role: role.displayName.toUpperCase() as any })
@@ -263,8 +263,13 @@ export class RelationBDTO {
 
             for (const resource of groupHasRessources) {
                 let crudPermission = role.resourcePermissions[resource.toType as keyof typeof role.resourcePermissions]
-                if(!globalyViewed[`${resource._id}`]) globalyViewed[`${resource._id}`] = crudPermission
-                if (!globalyViewed[`${resource.toId}`]) globalyViewed[`${resource.toId}`] = crudPermission
+                let relationViewed = globalyViewed[`${resource._id}`]
+                let resourceViewed = globalyViewed[`${resource.toId}`]
+
+                if (!relationViewed || (relationViewed && globalyViewed[resource._id] <= crudPermission)) globalyViewed[`${resource._id}`] = crudPermission
+                if (!resourceViewed ||
+                    (resourceViewed && globalyViewed[resource.toId] <= crudPermission)) globalyViewed[`${resource.toId}`] = crudPermission
+
                 await this.groupHasRessources(resource, relations, globalyViewed, role)
             }
         }
@@ -302,8 +307,13 @@ export class RelationBDTO {
         for (const resource of resourceHasResources) {
             if (resource.toType === 'role') continue
             let crudPermission = role.resourcePermissions[resource.toType as keyof typeof role.resourcePermissions]
-            if(!globalyViewed[`${resource._id}`]) globalyViewed[`${resource._id}`] = crudPermission
-            if (!globalyViewed[`${resource.toId}`]) globalyViewed[`${resource.toId}`] = crudPermission
+            let relationViewed = globalyViewed[`${resource._id}`]
+            let resourceViewed = globalyViewed[`${resource.toId}`]
+            if (!globalyViewed[`${resource._id}`]
+                || (relationViewed && globalyViewed[resource._id] <= crudPermission)) globalyViewed[`${resource._id}`] = crudPermission
+            if (!globalyViewed[`${resource.toId}`]
+                || (resourceViewed && globalyViewed[resource.toId] <= crudPermission)
+            ) globalyViewed[`${resource.toId}`] = crudPermission
             await this.groupHasRessources(resource, relations, globalyViewed, role)
         }
         return globalyViewed

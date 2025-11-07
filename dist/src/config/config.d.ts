@@ -1,13 +1,16 @@
 export declare const CONFIG: {
+    ALLOWED_ISSUERS: any;
     ENV: string;
-    DISABLE_LEGACCY_FINDOO: string | boolean;
     PG_CONFIG: string;
+    PG_SSL_MODE: string;
+    PG_SSL_CA_PATH: string;
+    PG_POOL_PING_INTERVAL_MS: number;
     MARIA_CONFIG: string;
     PORT: string | number;
     BASE_PATH: string;
     CLM_ROOT_USER: string;
     CLM_ROOT_PASSWORD: string;
-    CLM_ROOT_CONSUMER_KEY: string;
+    CLM_API_KEY: string;
     DEPLOY_URL: string;
     SMTP_FROM: string;
     SMTP_HOST: string;
@@ -20,5 +23,23 @@ export declare const CONFIG: {
     REDIS_CONFIG: string;
     OIDC_PROVIDERS: any;
     ODIC_CLIENTS: any;
+    ALLOW_TRUSTED_CLIENTS: boolean;
+    OIDC_CLAIM_SUB: string;
+    OIDC_CLAIM_EMAIL: string;
+    OIDC_CLAIM_GIVEN_NAME: string;
+    OIDC_CLAIM_FAMILY_NAME: string;
+    OIDC_CLAIM_TITLE: string;
+    OIDC_CLAIM_PERSONNEL_NR: string;
+    OIDC_CLAIM_TRAINING_ID: string;
+    OIDC_CLAIM_GROUPS: string;
+    OIDC_GROUP_ROLE_DELIMITER: string;
+    OIDC_GROUP_SUFFIX_LEARNER: string;
+    OIDC_GROUP_SUFFIX_INSTRUCTOR: string;
+    OIDC_GROUP_SUFFIX_ADMIN: string;
+    OIDC_ROLEMAP_LEARNER: string;
+    OIDC_ROLEMAP_INSTRUCTOR: string;
+    OIDC_ROLEMAP_ADMIN: string;
+    OIDC_SYNC_GROUPS_ON_AUTH: boolean;
+    OIDC_SYNC_GROUPS_ON_REFRESH: boolean;
 };
 //# sourceMappingURL=config.d.ts.map

@@ -31,6 +31,7 @@
 import jwt, { JwtPayload } from 'jsonwebtoken'
 import { CONFIG } from '../config/config';
 import axios from 'axios';
+import { verifyExternalToken } from './jwksService';
 
 const OIDC_PROVIDER = CONFIG.OIDC_PROVIDERS
 
@@ -96,14 +97,9 @@ export class JwtService {
         if (iss !== CONFIG.DEPLOY_URL) {
             const provider = OIDC_PROVIDER.find((provider: any) => provider.authorization_endpoint.includes(iss))
             if (!provider) throw ({ message: `Invalid issuer: ${iss}! `, status: 401 });
-            // get userinformation from provider
-
-            await axios.get(provider.userinfo_endpoint, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            })
-            return decoded
+            // New: verify via JWKS instead of calling userinfo endpoint
+            const verified = await verifyExternalToken(token)
+            return verified as any
         } else {
             try {
                 const decodedToken = await (new Promise((resolve, reject) => {

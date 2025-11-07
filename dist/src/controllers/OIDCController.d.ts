@@ -1,5 +1,7 @@
 import express from 'express';
 import { UserModel } from '../lib/CoreLib';
+export declare function reloadProviders(): Promise<void>;
+export declare function getEnrichedProviders(): any;
 declare class OIDController {
     router: express.Router;
     constructor();
@@ -17,6 +19,12 @@ declare class OIDController {
     }>;
     getAccessTokenByCode: express.Handler;
     ssoSuccess: express.Handler;
+    private normalizeGroupToken;
+    private parseGroupEntry;
+    private suffixToInternalRole;
+    private ensureGroupWithRole;
+    private ensureHierarchy;
+    private syncGroupsAndMembershipsFromClaims;
 }
 declare const _default: OIDController;
 export default _default;

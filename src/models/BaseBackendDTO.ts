@@ -64,6 +64,14 @@ abstract class BaseBackendDTO<Datamodel extends BaseDatamodel>{
         return this.adapter.findById(id, options);
     }
 
+    /**
+     * {@inheritDoc AdapterInterface.findByAttributes}
+     */
+    findByAttributes(searchObject: { [key: string]: any }): Promise<Datamodel[]> {
+        return this.adapter.findByAttributes(searchObject)
+    }
+
+
 }
 
 export default BaseBackendDTO;

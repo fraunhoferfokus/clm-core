@@ -4,7 +4,7 @@ import BaseBackendDTO from '../models/BaseBackendDTO';
 import BaseDatamodel, { iBaseDatamodel } from '../models/BaseDatamodel';
 import BaseFrontendDTO, { iBaseFrontendDTO } from '../models/BaseFrontendDTO';
 import { BaseExtensionCtrl } from '../controllers/BaseExtensionCtrl';
-import { AuthGuard, CheckResource, UserAuthenticationOptions } from "../handlers/AuthGuard";
+import { AuthGuard, CheckResource, CrudAccess, UserAuthenticationOptions } from "../handlers/AuthGuard";
 import errHandler from '../handlers/ErrorHandler';
 import BaseDAO from '../models/BaseDAO';
 import { GroupBDTO, groupBDTOInstance } from '../models/Group/GroupBDTO';
@@ -22,6 +22,7 @@ import ConsumerModel, { iConsumerModel, Path } from '../models/ServiceConsumer/C
 import EncryptService from '../services/EncryptService';
 import passport from '../passport/passport';
 import { roleBDTOInstance } from '../models/Role/RoleBDTO';
+import { extModelFetchInstance } from '../api/ExtModelFetcher';
 declare global {
     namespace Express {
         interface Request {
@@ -42,5 +43,5 @@ declare global {
         }
     }
 }
-export { iUserModel, UserModel, BaseDAO, RelationBDTO, BaseBackendDTO, iBaseDatamodel, BaseFrontendDTO, BaseDatamodel, iRelationModel, RelationModel, BaseModelController, BaseExtensionCtrl, AdapterInterface, iBaseFrontendDTO, JwtService, TokenPayload, TokenVerifyResult, iGroupModel, GroupModel, GroupBDTO, iConsumerModel, ConsumerBDTO, ConsumerModel, Path, UserBDTO, iPathModel, PathModel, PathBDTO, GroupPermission, UserGroupOptions, Role, AuthGuard, CheckResource, UserAuthenticationOptions, MariaAdapter, PreFetchOptions, EncryptService, relationBDTOInstance, userBDTOInstance, pathBDTOInstance, errHandler, groupBDTOInstance, jwtServiceInstance, consumerBDTOInstance, passport, roleBDTOInstance };
+export { iUserModel, UserModel, BaseDAO, RelationBDTO, BaseBackendDTO, iBaseDatamodel, BaseFrontendDTO, BaseDatamodel, iRelationModel, RelationModel, BaseModelController, BaseExtensionCtrl, AdapterInterface, iBaseFrontendDTO, JwtService, TokenPayload, TokenVerifyResult, iGroupModel, GroupModel, GroupBDTO, iConsumerModel, ConsumerBDTO, ConsumerModel, Path, UserBDTO, iPathModel, PathModel, PathBDTO, GroupPermission, UserGroupOptions, Role, AuthGuard, CheckResource, UserAuthenticationOptions, MariaAdapter, PreFetchOptions, EncryptService, relationBDTOInstance, userBDTOInstance, pathBDTOInstance, errHandler, groupBDTOInstance, jwtServiceInstance, extModelFetchInstance, consumerBDTOInstance, passport, roleBDTOInstance, CrudAccess };
 //# sourceMappingURL=CoreLib.d.ts.map

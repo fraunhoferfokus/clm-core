@@ -52,5 +52,11 @@ class BaseBackendDTO {
     findById(id, options) {
         return this.adapter.findById(id, options);
     }
+    /**
+     * {@inheritDoc AdapterInterface.findByAttributes}
+     */
+    findByAttributes(searchObject) {
+        return this.adapter.findByAttributes(searchObject);
+    }
 }
 exports.default = BaseBackendDTO;

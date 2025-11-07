@@ -34,6 +34,7 @@ import PathDAO from './PathDAO';
 import PathModel from './PathModel';
 import ConsumerDAO from '../ServiceConsumer/ConsumerDAO';
 import ConsumerModel from '../ServiceConsumer/ConsumerModel';
+import { CONFIG } from '../../config/config';
 
 // if (CONFIG.ENV === 'PROD') working_dir = __dirname.replace('/dist', '')
 
@@ -55,7 +56,7 @@ export class PathBDTO extends BaseBackendDTO<PathModel> {
      * @param ECLUDED_PATHS - array of paths which should not be registered in the database. 
      * @returns 
      */
-    async registerRoutes(app: any, ECLUDED_PATHS: string[], MGMT_TOKEN: string = 'MGMT_SERVICE', userId: string = "fame@fokus.fraunhofer.de", TO_BE_PROTECTED?: string[]) {
+    async registerRoutes(app: any, ECLUDED_PATHS: string[], MGMT_TOKEN: string = CONFIG.CLM_API_KEY, userId?: string, TO_BE_PROTECTED?: string[]) {
         const expressPaths = TO_BE_PROTECTED || listEndpoints(app).map((obj) => (obj.path))
 
 
@@ -80,7 +81,7 @@ export class PathBDTO extends BaseBackendDTO<PathModel> {
             )
         }
         let consumer = (await ConsumerDAO.findByAttributes({ displayName: MGMT_TOKEN }))[0]
-        if (!consumer) consumer = await ConsumerDAO.insert(new ConsumerModel({ _id: MGMT_TOKEN, displayName: MGMT_TOKEN, userId, active: true, domain: "FAME", paths: [] }))
+        if (!consumer) consumer = await ConsumerDAO.insert(new ConsumerModel({ _id: MGMT_TOKEN, displayName: MGMT_TOKEN, userId: userId || "ROOT_API_TOKEN", active: true, domain: "FAME", paths: [] }))
 
         await Promise.all([promises])
         const paths = await PathDAO.findAll()

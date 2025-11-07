@@ -46,6 +46,10 @@ const RoleDAO_1 = __importDefault(require("../models/Role/RoleDAO"));
 const RoleModel_1 = require("../models/Role/RoleModel");
 const UserDAO_1 = __importDefault(require("../models/User/UserDAO"));
 const UserModel_1 = require("../models/User/UserModel");
+const OIDCClientDAO_1 = __importDefault(require("../models/OIDCClient/OIDCClientDAO"));
+const OIDCClientModel_1 = __importDefault(require("../models/OIDCClient/OIDCClientModel"));
+const OIDCProviderDAO_1 = __importDefault(require("../models/OIDCProvider/OIDCProviderDAO"));
+const OIDCProviderModel_1 = __importDefault(require("../models/OIDCProvider/OIDCProviderModel"));
 const config_1 = require("./config");
 //create Admin User if not exists
 function configureDependencies(app, excludedPaths) {
@@ -65,6 +69,7 @@ function configureDependencies(app, excludedPaths) {
                     role: 0,
                     consumer: 0,
                     user: 14,
+                    mcp_server: 1,
                 },
                 strength: 0
             }));
@@ -80,7 +85,8 @@ function configureDependencies(app, excludedPaths) {
                     group: 1,
                     user: 1,
                     role: 1,
-                    consumer: 0
+                    consumer: 0,
+                    mcp_server: 1,
                 },
                 strength: 1,
                 immutable: true
@@ -97,7 +103,8 @@ function configureDependencies(app, excludedPaths) {
                     group: 1,
                     user: 3,
                     role: 1,
-                    consumer: 1
+                    consumer: 1,
+                    mcp_server: 7
                 },
                 strength: 2,
                 immutable: true
@@ -114,12 +121,13 @@ function configureDependencies(app, excludedPaths) {
                     group: 15,
                     user: 15,
                     role: 15,
-                    consumer: 15
+                    consumer: 15,
+                    mcp_server: 15
                 },
                 strength: 3,
                 immutable: true
             }));
-        yield PathBDTO_1.pathBDTOInstance.registerRoutes(app, excludedPaths, config_1.CONFIG.CLM_ROOT_CONSUMER_KEY, rootUser);
+        yield PathBDTO_1.pathBDTOInstance.registerRoutes(app, excludedPaths, config_1.CONFIG.CLM_API_KEY, rootUser);
         let user = (yield UserDAO_1.default.findByAttributes({ email: rootUser }))[0];
         if (!user)
             UserDAO_1.default.insert(new UserModel_1.UserModel({
@@ -131,6 +139,52 @@ function configureDependencies(app, excludedPaths) {
                 "isSuperAdmin": true,
                 "password": rootPassword
             }));
+        // Migrate OIDC Providers from env to DB if not already present
+        try {
+            const existingProviders = yield OIDCProviderDAO_1.default.findAll();
+            if (existingProviders.length === 0 && config_1.CONFIG.OIDC_PROVIDERS && config_1.CONFIG.OIDC_PROVIDERS.length > 0) {
+                console.log('Migrating OIDC Providers from env to database...');
+                for (const provider of config_1.CONFIG.OIDC_PROVIDERS) {
+                    yield OIDCProviderDAO_1.default.insert(new OIDCProviderModel_1.default({
+                        displayName: provider.displayName || 'Migrated Provider',
+                        authorization_endpoint: provider.authorization_endpoint,
+                        token_endpoint: provider.token_endpoint,
+                        end_session_endpoint: provider.end_session_endpoint,
+                        userinfo_endpoint: provider.userinfo_endpoint,
+                        jwks_uri: provider.jwks_uri || process.env.GLOBAL_JWKS_URI,
+                        client_id: provider.client_id,
+                        client_secret: provider.client_secret,
+                        issuer: provider.issuer,
+                        active: true
+                    }));
+                }
+                console.log(`Migrated ${config_1.CONFIG.OIDC_PROVIDERS.length} OIDC Provider(s) to database`);
+            }
+        }
+        catch (err) {
+            console.error('Failed to migrate OIDC Providers from env to DB:', err);
+        }
+        // Migrate OIDC Clients from env to DB if not already present
+        try {
+            const existingClients = yield OIDCClientDAO_1.default.findAll();
+            if (existingClients.length === 0 && config_1.CONFIG.ODIC_CLIENTS && config_1.CONFIG.ODIC_CLIENTS.length > 0) {
+                console.log('Migrating OIDC Clients from env to database...');
+                for (const client of config_1.CONFIG.ODIC_CLIENTS) {
+                    yield OIDCClientDAO_1.default.insert(new OIDCClientModel_1.default({
+                        client_id: client.client_id,
+                        client_secret: client.client_secret,
+                        displayName: client.displayName || 'Migrated Client',
+                        jwks_uri: client.jwks_uri,
+                        valid_redirect_uris: client.valid_redirect_uris || [],
+                        active: true
+                    }));
+                }
+                console.log(`Migrated ${config_1.CONFIG.ODIC_CLIENTS.length} OIDC Client(s) to database`);
+            }
+        }
+        catch (err) {
+            console.error('Failed to migrate OIDC Clients from env to DB:', err);
+        }
     });
 }
 exports.default = configureDependencies;

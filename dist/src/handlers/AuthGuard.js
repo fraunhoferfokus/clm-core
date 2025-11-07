@@ -28,6 +28,29 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -50,9 +73,34 @@ const UserBDTO_1 = require("../models/User/UserBDTO");
 const jwtService_1 = require("../services/jwtService");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = require("../config/config");
-const axios_1 = __importDefault(require("axios"));
 const RoleDAO_1 = __importDefault(require("../models/Role/RoleDAO"));
-const OIDC_PROVIDER = config_1.CONFIG.OIDC_PROVIDERS;
+const GroupDAO_1 = __importDefault(require("../models/Group/GroupDAO"));
+const GroupModel_1 = __importDefault(require("../models/Group/GroupModel"));
+// Get enriched providers (with jwks_uri fallback)
+let OIDC_PROVIDER_ENRICHED = [];
+function getOIDCProviders() {
+    try {
+        // Import dynamically to avoid circular dependencies
+        const { getEnrichedProviders } = require('../controllers/OIDCController');
+        OIDC_PROVIDER_ENRICHED = getEnrichedProviders();
+    }
+    catch (_b) {
+        OIDC_PROVIDER_ENRICHED = config_1.CONFIG.OIDC_PROVIDERS || [];
+    }
+    return OIDC_PROVIDER_ENRICHED;
+}
+// Log version when AuthGuard is imported (helps consumers using the npm package)
+(() => {
+    let version = 'unknown';
+    try {
+        // Using relative path resolution at runtime (dist structure mirrors src)
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const pkg = require('../../package.json');
+        if (pkg === null || pkg === void 0 ? void 0 : pkg.version)
+            version = pkg.version;
+    }
+    catch ( /* ignore */_b) { /* ignore */ }
+})();
 let HTTP_METHODS_CRUD_MAPPER = {
     GET: 1,
     POST: 2,
@@ -96,25 +144,74 @@ class AuthGuard {
                 try {
                     let decoded = jsonwebtoken_1.default.decode(token);
                     let iss = decoded.iss;
-                    if (iss !== config_1.CONFIG.DEPLOY_URL) {
-                        const provider = OIDC_PROVIDER.find((provider) => provider.authorization_endpoint.includes(iss));
+                    // Flag um zwischen internen und externen Tokens zu unterscheiden
+                    let isExternalToken = false;
+                    if (iss !== config_1.CONFIG.DEPLOY_URL && !config_1.CONFIG.ALLOWED_ISSUERS.includes(iss)) {
+                        isExternalToken = true;
+                        const providers = getOIDCProviders();
+                        const provider = providers.find((provider) => provider.authorization_endpoint.includes(iss));
                         if (!provider)
                             return next({ message: `Invalid issuer: ${iss}! `, status: 401 });
-                        // get userinformation from provider
-                        yield axios_1.default.get(provider.userinfo_endpoint, {
-                            headers: {
-                                Authorization: `Bearer ${token}`
-                            }
-                        }).catch((err) => {
-                            var _b, _c;
+                        // JWKS based verification replaces userinfo endpoint call
+                        try {
+                            const { verifyExternalToken } = yield Promise.resolve().then(() => __importStar(require('../services/jwksService')));
+                            yield verifyExternalToken(token);
+                        }
+                        catch (err) {
                             console.error(err);
-                            return next({ status: ((_b = err === null || err === void 0 ? void 0 : err.response) === null || _b === void 0 ? void 0 : _b.status) || 401, message: ((_c = err === null || err === void 0 ? void 0 : err.response) === null || _c === void 0 ? void 0 : _c.data) || 'IdP validation error with provided token...' });
-                        });
+                            return next({ status: err.status || 401, message: err.message || 'IdP validation error with provided token...' });
+                        }
                     }
                     else {
                         yield jwtService_1.jwtServiceInstance.verifyToken(token);
                     }
-                    let user = yield UserBDTO_1.userBDTOInstance.findById(decoded.sub);
+                    let user;
+                    // Für interne Tokens: Direkter Lookup via sub (keine Fallbacks, keine Claims)
+                    if (!isExternalToken) {
+                        const userId = decoded.sub;
+                        try {
+                            user = yield UserBDTO_1.userBDTOInstance.findById(userId);
+                        }
+                        catch (_) {
+                            return next({ status: 401, message: 'User not found for internal token subject' });
+                        }
+                    }
+                    else {
+                        // Für externe Tokens: Erweiterte Lookup-Logik mit trainingId/sub Claims
+                        const trainingKey = config_1.CONFIG.OIDC_CLAIM_TRAINING_ID;
+                        const subKey = config_1.CONFIG.OIDC_CLAIM_SUB;
+                        const preferredId = (decoded === null || decoded === void 0 ? void 0 : decoded[trainingKey]) || (decoded === null || decoded === void 0 ? void 0 : decoded[subKey]) || decoded.sub;
+                        try {
+                            user = yield UserBDTO_1.userBDTOInstance.findById(preferredId);
+                        }
+                        catch (_) {
+                            // Fallbacks to handle legacy users
+                            const byIdentity = (yield UserBDTO_1.userBDTOInstance.findByAttributes({ identityId: preferredId }))[0];
+                            if (byIdentity)
+                                user = byIdentity;
+                            if (!user) {
+                                const byEmail = (yield UserBDTO_1.userBDTOInstance.findByAttributes({ email: preferredId }))[0] || (yield UserBDTO_1.userBDTOInstance.findByAttributes({ email: decoded === null || decoded === void 0 ? void 0 : decoded.email }))[0];
+                                if (byEmail)
+                                    user = byEmail;
+                            }
+                            if (!user)
+                                return next({ status: 401, message: 'User not found for token subject' });
+                        }
+                        // Gruppen-Synchronisierung nur für externe Tokens
+                        if (config_1.CONFIG.OIDC_SYNC_GROUPS_ON_AUTH) {
+                            try {
+                                const groupsRaw = decoded === null || decoded === void 0 ? void 0 : decoded[config_1.CONFIG.OIDC_CLAIM_GROUPS];
+                                if (groupsRaw && typeof groupsRaw === 'string') {
+                                    yield AuthGuard.syncGroupsAndMembershipsFromClaims(user._id, groupsRaw);
+                                }
+                            }
+                            catch (e) {
+                                // Do not block request on group sync errors
+                                if (config_1.CONFIG.VERBOSE === 'true')
+                                    console.error('AuthGuard group sync error:', e);
+                            }
+                        }
+                    }
                     req.requestingUser = user;
                     // req.app.locals.user = req.locals?.user;
                     return next();
@@ -168,6 +265,129 @@ class AuthGuard {
                 return next();
             })
         ];
+    }
+    /** Normalize a group token by trimming and unifying delimiter spacing */
+    static normalizeGroupToken(raw) {
+        return (raw || '').replace(/\s*_\s*/g, config_1.CONFIG.OIDC_GROUP_ROLE_DELIMITER).replace(/\s+/g, ' ').trim();
+    }
+    /** Parse a single group entry into base displayName and optional suffix role token */
+    static parseGroupEntry(entry) {
+        const cleaned = this.normalizeGroupToken(entry);
+        if (!cleaned)
+            return { base: '', suffix: null };
+        const delim = config_1.CONFIG.OIDC_GROUP_ROLE_DELIMITER;
+        const lastIdx = cleaned.lastIndexOf(delim);
+        if (lastIdx < 0)
+            return { base: cleaned, suffix: null };
+        const base = cleaned.substring(0, lastIdx);
+        const rawSuffix = cleaned.substring(lastIdx + delim.length);
+        return { base: base || cleaned, suffix: rawSuffix || null };
+    }
+    /** Map suffix token to internal role display name */
+    static suffixToInternalRole(suffix) {
+        const s = (suffix || '').trim().toLowerCase();
+        const sufLearner = config_1.CONFIG.OIDC_GROUP_SUFFIX_LEARNER.toLowerCase();
+        const sufInstructor = config_1.CONFIG.OIDC_GROUP_SUFFIX_INSTRUCTOR.toLowerCase();
+        const sufAdmin = config_1.CONFIG.OIDC_GROUP_SUFFIX_ADMIN.toLowerCase();
+        if (s === sufInstructor)
+            return config_1.CONFIG.OIDC_ROLEMAP_INSTRUCTOR;
+        if (s === sufAdmin)
+            return config_1.CONFIG.OIDC_ROLEMAP_ADMIN;
+        if (s === sufLearner)
+            return config_1.CONFIG.OIDC_ROLEMAP_LEARNER;
+        return config_1.CONFIG.OIDC_ROLEMAP_LEARNER;
+    }
+    /** Ensure a group exists with the given role connected; create if missing */
+    static ensureGroupWithRole(displayName, roleName) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const role = yield RoleDAO_1.default.findByRoleName(roleName);
+            const [groups, relations] = yield Promise.all([
+                GroupDAO_1.default.findByAttributes({ displayName }),
+                RelationBDTO_1.default.findAll()
+            ]);
+            for (const g of groups) {
+                const rel = relations.find(r => r.fromType === 'group' && r.fromId === g._id && r.toType === 'role');
+                if (rel && rel.toId === role._id)
+                    return g;
+            }
+            return GroupDAO_1.default.insert(new GroupModel_1.default({ displayName }), { role: role._id });
+        });
+    }
+    /** Ensure the hierarchy Admin -> Instructor -> Learner exists for a base group */
+    static ensureHierarchy(groupsByRole) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const admin = groupsByRole['OrgAdmin'];
+            const instructor = groupsByRole['Instructor'];
+            const learner = groupsByRole['Learner'];
+            if (admin && instructor) {
+                try {
+                    yield RelationBDTO_1.default.addGroupToGroup(admin._id, instructor._id);
+                }
+                catch (_) { /* ignore */ }
+            }
+            else if (admin && learner) {
+                try {
+                    yield RelationBDTO_1.default.addGroupToGroup(admin._id, learner._id);
+                }
+                catch (_) { /* ignore */ }
+            }
+            if (instructor && learner) {
+                try {
+                    yield RelationBDTO_1.default.addGroupToGroup(instructor._id, learner._id);
+                }
+                catch (_) { /* ignore */ }
+            }
+        });
+    }
+    /** Parse the claim and synchronize user's memberships */
+    static syncGroupsAndMembershipsFromClaims(userId, groupsRaw) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // Keep displayName exactly as in token; only normalize for parsing role/base
+            const items = (groupsRaw || '').split(',').map(s => s.trim()).filter(Boolean);
+            const baseToRoleName = new Map();
+            for (const raw of items) {
+                const { base, suffix } = this.parseGroupEntry(raw);
+                if (!base)
+                    continue;
+                const role = this.suffixToInternalRole(suffix);
+                if (!baseToRoleName.has(base))
+                    baseToRoleName.set(base, new Map());
+                baseToRoleName.get(base).set(role, raw);
+            }
+            const desired = [];
+            for (const [base, roleNameMap] of baseToRoleName.entries()) {
+                const groupsByRole = {};
+                const roles = roleNameMap.size > 0
+                    ? Array.from(roleNameMap.keys())
+                    : ['Learner'];
+                for (const r of roles) {
+                    const displayName = roleNameMap.get(r) || base;
+                    const g = yield this.ensureGroupWithRole(displayName, r);
+                    groupsByRole[r] = g;
+                    desired.push(g._id);
+                }
+                yield this.ensureHierarchy(groupsByRole);
+            }
+            const current = yield RelationBDTO_1.default.getUsersGroups(userId);
+            const currentIds = new Set(current.map(g => g._id));
+            const desiredIds = new Set(desired);
+            for (const gid of desiredIds) {
+                if (!currentIds.has(gid)) {
+                    try {
+                        yield RelationBDTO_1.default.addUserToGroup(userId, gid);
+                    }
+                    catch (_) { /* ignore */ }
+                }
+            }
+            for (const gid of currentIds) {
+                if (!desiredIds.has(gid)) {
+                    try {
+                        yield RelationBDTO_1.default.removeUserFromGroup(userId, gid);
+                    }
+                    catch (_) { /* ignore */ }
+                }
+            }
+        });
     }
 }
 exports.AuthGuard = AuthGuard;

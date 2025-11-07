@@ -36,6 +36,7 @@ import { CONFIG } from './src/config/config'
 import configureDependencies from './src/config/configureDeps'
 import EntryPointController from './src/controllers/EntryPointController'
 import errHandler from './src/handlers/ErrorHandler'
+import pool from './src/models/pgPool'
 dotenv.config()
 
 export const ROOT_DIR = process.cwd()
@@ -76,6 +77,23 @@ const EXCLUDED_PATHS = [
 ]
 
 app.get('/health', (req, res) => res.send('OK'))
+app.get('/live', async (req, res) => {
+    const start = Date.now();
+    const timeoutMs = 2000; // 2s liveness budget
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('DB ping timeout')), timeoutMs));
+    try {
+        await Promise.race([
+            // Keep it very cheap; rely on pooled connection
+            (pool as any).query ? (pool as any).query('SELECT 1') : Promise.reject(new Error('Pool not initialized')),
+            timeout
+        ]);
+        const duration = Date.now() - start;
+        return res.status(200).json({ status: 'UP', db: 'UP', durationMs: duration });
+    } catch (err: any) {
+        const duration = Date.now() - start;
+        return res.status(503).json({ status: 'DEGRADED', db: 'DOWN', error: err.message, durationMs: duration });
+    }
+})
 app.set('views', path.join(ROOT_DIR, '/pages'))
 app.set('view engine', 'ejs')
 
@@ -87,8 +105,7 @@ app.use(errHandler);
 
 configureDependencies(app, EXCLUDED_PATHS).then(() =>
     app.listen(PORT, () => {
-        console.info('Listening for core')
-
+        console.info(`Listening for core requests on port ${PORT}`)
     })
 ).catch((err) => {
     console.error(JSON.stringify(err))

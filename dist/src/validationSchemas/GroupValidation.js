@@ -76,6 +76,12 @@ const createGroupSchema = {
             }),
             errorMessage: `Specified role does not exist`
         }
+    },
+    _id: {
+        optional: true,
+        isString: {
+            errorMessage: `Has to be a string`
+        }
     }
 };
 const updateGroupSchema = {

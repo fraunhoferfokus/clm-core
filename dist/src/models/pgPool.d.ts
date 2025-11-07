@@ -1,4 +1,6 @@
 import { Pool } from 'pg';
-declare const pool: Pool;
-export default pool;
+declare const poolInstance: Pool & {
+    query: any;
+};
+export default poolInstance;
 //# sourceMappingURL=pgPool.d.ts.map

@@ -1,53 +1,63 @@
-FROM node:20.18.1-alpine3.19 as builder
+###############################################
+# Builder stage
+# - Install all dependencies
+# - Compile TypeScript to ./dist
+# - Prune dev dependencies
+# Hinweis: Hier wird bewusst npm verwendet; im Runtime-Image wird npm entfernt,
+# damit die bekannte Schwachstelle (tar@7.5.1) nicht mehr vorhanden ist.
+###############################################
+FROM node:24-alpine3.22 AS builder
 
-# Install git and other necessary tools
+# Benötigte Tools für Build (z. B. git)
 RUN apk add --no-cache git
 
-# Set the working directory
-WORKDIR /tmp
+# Arbeitsverzeichnis setzen
+WORKDIR /app
 
-# Copy only the necessary files temporarily for installation
+# Nur Manifest-Dateien kopieren und Abhängigkeiten installieren
 COPY package.json package-lock.json ./
+# Reproduzierbare Installation anhand des Lockfiles
+RUN npm ci
 
-# Install dependencies in a temporary directory
-RUN npm install 
+# Quellcode und TS-Config kopieren
+COPY tsconfig.json ./
+COPY server.ts ./
+COPY src ./src
 
-# Stage 2: Final image
-FROM node:20.18.1-alpine3.19
+# TypeScript kompilieren
+RUN npm run build
 
-# delete CVE
-RUN rm -r /usr/local/lib/node_modules/npm/node_modules/cross-spawn/
+# Nur Produktionsabhängigkeiten behalten
+RUN npm prune --omit=dev
 
-# Create a non-root user
+###############################################
+# Runtime stage (schlankes Image)
+# - Kopiert nur dist/ und prod node_modules
+# - Entfernt npm vollständig, um tar aus der Abhängigkeitskette zu eliminieren
+###############################################
+FROM node:24-alpine3.22 AS runtime
+
+# Systempakete aktualisieren
+RUN apk update && apk upgrade --no-cache
+
+# Unnötige/verletzliche npm-Teile entfernen (wir benötigen npm zur Laufzeit nicht)
+# Dadurch wird die in Harbor gemeldete Schwachstelle in npm->tar entfernt.
+RUN rm -rf /usr/local/lib/node_modules/npm || true
+
+# Non-Root-User anlegen
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Set the working directory
+# Arbeitsverzeichnis
 WORKDIR /app
 
-# Install TypeScript globally
-RUN npm install -g typescript
+# Artefakte aus dem Builder übernehmen
+COPY --chown=appuser:appgroup --from=builder /app/node_modules ./node_modules
+COPY --chown=appuser:appgroup --from=builder /app/dist ./dist
+COPY --chown=appuser:appgroup --from=builder /app/src ./src
+COPY --chown=appuser:appgroup healthcheck.js ./healthcheck.js
 
-# Change ownership of the app directory
-RUN chown -R appuser:appgroup /app
-
-# Switch to the non-root user
+# Auf Non-Root wechseln
 USER appuser
 
-# Set working directory
-WORKDIR /app
-
-# Copy the rest of the application files
-COPY tsconfig.json healthcheck.js  /app/
-
-COPY ./src /app/src
-
-COPY server.ts /app/server.ts
-
-# Copy node_modules from the builder stage
-COPY --from=builder /tmp/node_modules ./node_modules
-
-# Compile TypeScript
-RUN rm -rf ./dist && npx tsc
-
-# Start the application
+# Start-Kommando
 CMD ["node", "./dist/server.js"]

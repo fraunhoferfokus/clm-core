@@ -7,6 +7,7 @@ export interface RessourcePermissions {
     user: CrudPermission;
     role: CrudPermission;
     consumer: CrudPermission;
+    mcp_server: CrudPermission;
 }
 export declare enum CrudPermission {
     NONE = 0,

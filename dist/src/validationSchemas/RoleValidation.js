@@ -50,7 +50,6 @@ exports.deleteRoleSchemaValidator = (0, express_validator_1.checkSchema)({
         custom: {
             options: (value) => __awaiter(void 0, void 0, void 0, function* () {
                 try {
-                    console.log('validationg');
                     const role = yield RoleDAO_1.default.findById(value);
                     if (role.immutable)
                         return Promise.reject("Role is immutable");
@@ -70,7 +69,6 @@ exports.updateRoleSchemaValidator = (0, express_validator_1.checkSchema)({
         custom: {
             options: (value) => __awaiter(void 0, void 0, void 0, function* () {
                 try {
-                    console.log('validationg');
                     const role = yield RoleDAO_1.default.findById(value);
                     if (role.immutable)
                         return Promise.reject("Role is immutable");

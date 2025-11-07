@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken';
 /**
  * The payload which is passed to the methods {@link JwtService.createToken}, {@link JwtService.createAccessAndRefreshToken}
  * @public
@@ -47,7 +46,7 @@ export declare class JwtService {
      * @param token - Token to verify (which is usually provided by means of REST communication)
      * @param secret - The secret to test verify against
      */
-    verifyToken(token: string, secret?: string): Promise<TokenVerifyResult | jwt.JwtPayload>;
+    verifyToken(token: string, secret?: string): Promise<any>;
     /**
      * Create a token (consumed by {@link JwtService.createAccessAndRefreshToken})
      * @param payload - {@link TokenPayload}

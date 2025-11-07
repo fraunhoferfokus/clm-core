@@ -52,7 +52,7 @@ const UserDAO_1 = __importDefault(require("./UserDAO"));
 class UserModel extends BaseDatamodel_1.default {
     constructor(payload) {
         var _a, _b;
-        payload._id = payload.email;
+        payload._id = payload._id || payload.email;
         super(payload);
         this.password = payload.password;
         this.email = payload.email;

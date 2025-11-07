@@ -28,6 +28,15 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -41,6 +50,7 @@ const config_1 = require("./src/config/config");
 const configureDeps_1 = __importDefault(require("./src/config/configureDeps"));
 const EntryPointController_1 = __importDefault(require("./src/controllers/EntryPointController"));
 const ErrorHandler_1 = __importDefault(require("./src/handlers/ErrorHandler"));
+const pgPool_1 = __importDefault(require("./src/models/pgPool"));
 dotenv_1.default.config();
 exports.ROOT_DIR = process.cwd();
 //@ts-ignore
@@ -70,12 +80,30 @@ const EXCLUDED_PATHS = [
     `/health`
 ];
 app.get('/health', (req, res) => res.send('OK'));
+app.get('/live', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const start = Date.now();
+    const timeoutMs = 2000; // 2s liveness budget
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('DB ping timeout')), timeoutMs));
+    try {
+        yield Promise.race([
+            // Keep it very cheap; rely on pooled connection
+            pgPool_1.default.query ? pgPool_1.default.query('SELECT 1') : Promise.reject(new Error('Pool not initialized')),
+            timeout
+        ]);
+        const duration = Date.now() - start;
+        return res.status(200).json({ status: 'UP', db: 'UP', durationMs: duration });
+    }
+    catch (err) {
+        const duration = Date.now() - start;
+        return res.status(503).json({ status: 'DEGRADED', db: 'DOWN', error: err.message, durationMs: duration });
+    }
+}));
 app.set('views', path_1.default.join(exports.ROOT_DIR, '/pages'));
 app.set('view engine', 'ejs');
 app.use(basePath, EntryPointController_1.default);
 app.use(ErrorHandler_1.default);
 (0, configureDeps_1.default)(app, EXCLUDED_PATHS).then(() => app.listen(PORT, () => {
-    console.info('Listening for core');
+    console.info(`Listening for core requests on port ${PORT}`);
 })).catch((err) => {
     console.error(JSON.stringify(err));
 });

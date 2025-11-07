@@ -45,6 +45,8 @@ import MgmtRoleController from './MgmtRoleController'
 import { extModelFetchInstance } from '../api/ExtModelFetcher'
 import ResourceController from './ResourceController'
 import { CrudAccess } from '../handlers/AuthGuard'
+import OIDCClientController from './OIDCClientController'
+import OIDCProviderController from './OIDCProviderController'
 /**
  * @openapi
  * components:
@@ -149,17 +151,14 @@ EntryPointController.use('/resources', ResourceController.router)
 // CONFIG.DISABLE_LEGACCY_FINDOO = true
 
 EntryPointController.get('/mgmt/users/:id/token',
-    CONFIG.DISABLE_LEGACCY_FINDOO ?
+    // Neue Logik: Wenn Trusted Clients erlaubt sind -> Permission Checker überspringen
+    CONFIG.ALLOW_TRUSTED_CLIENTS ?
+        ((req, res, next) => next()) as express.Handler :
         AuthGuard.permissionChecker(
             'user',
-            [{
-                in: 'path',
-                name: 'id'
-            }],
+            [{ in: 'path', name: 'id' }],
             CrudAccess.ReadWriteDeleteUpdate
-        ) :
-        ((req, res, next) => { return next() }) as express.Handler
-    ,
+        ),
     ((req, res, next) => {
         return UserDAO.findById(req.params.id)
             .then((user) => jwtServiceInstance.createToken(user))
@@ -175,6 +174,8 @@ EntryPointController.use('/mgmt/users', MgtmUserController.router)
 EntryPointController.use('/mgmt/consumers', MgtmAPITokenController.router)
 EntryPointController.use('/mgmt/groups', MgtmGroupController.router)
 EntryPointController.use('/mgmt/roles', MgmtRoleController.router)
+EntryPointController.use('/mgmt/oidc-clients', OIDCClientController.router)
+EntryPointController.use('/mgmt/oidc-providers', OIDCProviderController.router)
 
 /**
  * @openapi

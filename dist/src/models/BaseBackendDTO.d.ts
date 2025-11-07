@@ -21,6 +21,12 @@ declare abstract class BaseBackendDTO<Datamodel extends BaseDatamodel> {
     * {@inheritDoc AdapterInterface.findById}
     */
     findById(id: string, options?: any): Promise<Datamodel>;
+    /**
+     * {@inheritDoc AdapterInterface.findByAttributes}
+     */
+    findByAttributes(searchObject: {
+        [key: string]: any;
+    }): Promise<Datamodel[]>;
 }
 export default BaseBackendDTO;
 //# sourceMappingURL=BaseBackendDTO.d.ts.map

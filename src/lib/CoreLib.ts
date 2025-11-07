@@ -37,7 +37,7 @@ import BaseDatamodel, { iBaseDatamodel } from '../models/BaseDatamodel';
 import BaseFrontendDTO, { iBaseFrontendDTO } from '../models/BaseFrontendDTO';
 // DTOS
 import { BaseExtensionCtrl } from '../controllers/BaseExtensionCtrl';
-import { AuthGuard, CheckResource, UserAuthenticationOptions } from "../handlers/AuthGuard";
+import { AuthGuard, CheckResource, CrudAccess, UserAuthenticationOptions } from "../handlers/AuthGuard";
 import errHandler from '../handlers/ErrorHandler';
 import BaseDAO from '../models/BaseDAO';
 import { GroupBDTO, groupBDTOInstance } from '../models/Group/GroupBDTO';
@@ -56,6 +56,7 @@ import ConsumerModel, { iConsumerModel, Path } from '../models/ServiceConsumer/C
 import EncryptService from '../services/EncryptService';
 import passport from '../passport/passport';
 import { roleBDTOInstance } from '../models/Role/RoleBDTO';
+import { extModelFetchInstance } from '../api/ExtModelFetcher';
 
 declare global {
     namespace Express {
@@ -124,9 +125,11 @@ export {
     groupBDTOInstance,
     jwtServiceInstance,
     // redisClient,
+    extModelFetchInstance,
     consumerBDTOInstance,
     passport,
-    roleBDTOInstance
+    roleBDTOInstance,
+    CrudAccess
 };
 
 

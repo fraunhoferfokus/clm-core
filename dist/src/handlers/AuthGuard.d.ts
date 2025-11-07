@@ -84,5 +84,17 @@ export declare class AuthGuard {
      */
     static requireAdminUser: () => express.Handler[];
     private static sameUserAsId;
+    /** Normalize a group token by trimming and unifying delimiter spacing */
+    private static normalizeGroupToken;
+    /** Parse a single group entry into base displayName and optional suffix role token */
+    private static parseGroupEntry;
+    /** Map suffix token to internal role display name */
+    private static suffixToInternalRole;
+    /** Ensure a group exists with the given role connected; create if missing */
+    private static ensureGroupWithRole;
+    /** Ensure the hierarchy Admin -> Instructor -> Learner exists for a base group */
+    private static ensureHierarchy;
+    /** Parse the claim and synchronize user's memberships */
+    private static syncGroupsAndMembershipsFromClaims;
 }
 //# sourceMappingURL=AuthGuard.d.ts.map

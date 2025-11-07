@@ -162,9 +162,12 @@ class RelationBDTO {
                     && relation.toId !== userIsInGroup.toId);
                 for (const resource of groupHasRessources) {
                     let crudPermission = role.resourcePermissions[resource.toType];
-                    if (!globalyViewed[`${resource._id}`])
+                    let relationViewed = globalyViewed[`${resource._id}`];
+                    let resourceViewed = globalyViewed[`${resource.toId}`];
+                    if (!relationViewed || (relationViewed && globalyViewed[resource._id] <= crudPermission))
                         globalyViewed[`${resource._id}`] = crudPermission;
-                    if (!globalyViewed[`${resource.toId}`])
+                    if (!resourceViewed ||
+                        (resourceViewed && globalyViewed[resource.toId] <= crudPermission))
                         globalyViewed[`${resource.toId}`] = crudPermission;
                     yield this.groupHasRessources(resource, relations, globalyViewed, role);
                 }
@@ -195,9 +198,13 @@ class RelationBDTO {
                 if (resource.toType === 'role')
                     continue;
                 let crudPermission = role.resourcePermissions[resource.toType];
-                if (!globalyViewed[`${resource._id}`])
+                let relationViewed = globalyViewed[`${resource._id}`];
+                let resourceViewed = globalyViewed[`${resource.toId}`];
+                if (!globalyViewed[`${resource._id}`]
+                    || (relationViewed && globalyViewed[resource._id] <= crudPermission))
                     globalyViewed[`${resource._id}`] = crudPermission;
-                if (!globalyViewed[`${resource.toId}`])
+                if (!globalyViewed[`${resource.toId}`]
+                    || (resourceViewed && globalyViewed[resource.toId] <= crudPermission))
                     globalyViewed[`${resource.toId}`] = crudPermission;
                 yield this.groupHasRessources(resource, relations, globalyViewed, role);
             }
