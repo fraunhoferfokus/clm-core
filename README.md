@@ -1,124 +1,179 @@
-# clm-core
+# What is the Common Learning Middleware?
+
+The connection of different educational technologies and specialized services to large educational ecosystems using open standards is a central use case of the Common Learning Middleware (CLM). Based on the Best-of-Breed strategy, various providers of educational offerings can connect their learning content via the CLM with a publish-subscribe system in order to increase their own reach. The CLM supports - to facilitate integration - common standards of a seamless educational journey and is even able to translate from one standard of a client system to an alternative standard supported by the target system at runtime of a request. 
+
+The CLM serves as an intermediary between learning applications and learning content, while the integration of further standards enables providers to offer advanced services such as AI-supported systems, recommender systems or learning analytics systems via the CLM.
+
+## Reference Projects
+
+The middleware approach has already been tested in various settings
+* Prototype of German National Education Platform “mEDUator”: https://meduator.fokus.fraunhofer.de/
+* Research Study “AI in LMS” for the German Armed Forces: https://kilms.fraunhofer.de/ 
+* In various German government-funded projects to connect adaptive educational technologies; such as
+   * Control&Connect: https://www.fokus.fraunhofer.de/en/projects/fame/control_connect_23-05 
+   * EXPAND+ER WB³: https://www.fokus.fraunhofer.de/en/project/fame/expander_2021-12 
+   * TripleAdapt: https://www.fokus.fraunhofer.de/en/fame/projects/tripleadapt 
+
+### Video Explanation
+
+The following video explain CLM from the perspective of a user.
+
+#### Short explanation video of the user perspective (German only)
+https://github.com/fraunhoferfokus/clm-core/assets/135810890/44a340ab-1d86-4930-9c08-bffe457bc222
 
 
 
-## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## OPEN CLM-CORE
+This is the core module from which all other microservices inherit to extend their own functionality. The focus here is on user and rights management as well as the relationship model. Together with the other six services, this forms the Open-Core package of the Common Learning Middleware.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+The Core of the Common Learning Middleware and selected submodules are Open Source, meaning that many relevant use cases can already be implemented in educational ecosystems. Nevertheless, there are a number of other CLM submodules that supplement the infrastructure with important additional functions, specifications & standards, graphical interfaces, etc. and which are not currently Open Source. If you are interested in additional functions or premium features or if you cannot use the software under the specified license for certain reasons, please contact the CLM developers.
 
-## Add your files
+## Submodules
+The following Open Source submodules which extend the basic functionalities with additional features are part of the Open-Core package of the Common Learning Middleware:
+* [clm-core (this module)](https://github.com/fraunhoferfokus/clm-core): Description above
+* [clm-ext-service_providers](https://github.com/fraunhoferfokus/clm-ext-service_providers): This service is utilized for managing service providers. In the CLM framework, service providers act as an abstraction layer. They are responsible for registering launchable tools with CLM and making these tools accessible to learners through enrollments. A single service provider can encompass a variety of launchable tools. The configuration of the service provider is transmitted to these tools, unless a tool has its own specific configuration defined.
+* [clm-ext-tools](https://github.com/fraunhoferfokus/clm-ext-tools): This service facilitates the management of Launchable Tools. Launchable Tools are those that are made available by CLM providers through supported standards. Currently, the standards supported are LTI 1.1, LTI 1.3, and CMI5. A Launchable Tool is never assigned directly to a learner or a group; instead, it is always associated within the context of a Learning Object.
+* [clm-ext-learning_objects](https://github.com/fraunhoferfokus/clm-ext-learning_objects): This service facilitates the management of learning objects. Learning objects are essentially courses, which can be nested within each other as needed. A learning object becomes a 'launchable object' when it is linked to a tool capable of being launched. Enrollments to these learning or launchable objects can be made via existing users and groups. Once enrolled, a user is authorized to access and utilize the associated tool.
+* [clm-ext-launch](https://github.com/fraunhoferfokus/clm-ext-launch): This service is used to allow clients to execute a launch request (LTI, CMI5) and then display the content in the client system. This service can also translate between different launch specifications offered by the different tools. The groups/user assignments determine whether a content is launched for the context of a user.
+* [clm-ext-tracedata](https://github.com/fraunhoferfokus/clm-ext-tracedata): This service is utilized for persisting xAPI statements from learners when they submit learning activities through a content provider. It routes the appropriate statements to the associated learning records stores based on group affiliations.
+* [clm-ext-swagger](https://github.com/fraunhoferfokus/clm-ext-swagger): Serves as a documentation service of the Open-core package. Dynamically retrieves the Open API specification of the deployed microservices.	
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Requirements
+- MariaDB, set up locally. This service leverages a database (DB) as the cornerstone for storing documents persistently. To establish a connection with MariaDB, it is essential that the database is secured through username and password authentication. Therefore, in order to run this service it is  required to create a database within the MariaDB and configure it with a username and password for access control
+  * MariaDB Installation: https://mariadb.com/kb/en/getting-installing-and-upgrading-mariadb/
+  * For setting up the password of a user: https://mariadb.com/kb/en/set-password/
+  
+- Node.js 20.x: https://nodejs.org/en/download
 
-```
-cd existing_repo
-git remote add origin https://gitlab.fokus.fraunhofer.de/learning-technologies/tenants/tricat/clm-core.git
-git branch -M main
-git push -uf origin main
-```
+### Folder Structure
+root
 
-## Integrate with your tools
+├── api-docs # Open API 3.0.0 definition as .yaml file documenting all routes and data models this service offers.
 
-- [ ] [Set up project integrations](https://gitlab.fokus.fraunhofer.de/learning-technologies/tenants/tricat/clm-core/-/settings/integrations)
+├── docs # Developer documentation of all functions, classes, interfaces, types this service exposes as an npm package.
 
-## Collaborate with your team
+├── dist # The built TypeScript project transpiled to JavaScript.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+└── src # Business-relevant logic for this web server.
 
-## Test and Deploy
 
-Use the built-in continuous integration in GitLab.
+### Architecture
+![Entit Relationship Model](assets/clm.EntityRelationshipdiagram.v1p0p0.svg)
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
 
-***
 
-# Editing this README
+The Entity Relationship Model of the Open Core is shown above. 
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+The clm-core module includes the management of the following resources:
 
-## Suggestions for a good README
+#### Groups
+- Can be nested hierarchically.
+- Users can be assigned to groups.
+- Access to resources is controlled by group permissions, which is context-dependent.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+#### Roles
+- Always associated with a group.
+- Specifies the permissions for accessing resources.
 
-## Name
-Choose a self-explaining name for your project.
+#### Users
+- Can be registered through federated identity in the CLM, created through CLM's in-house user management, or added by an administrative person.
+- Assigned to one or more groups.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+#### Paths
+- Represents a REST interface.
+- A path is created for each interface offered by a microservice of the Open-Core.
+- Paths are protected.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+#### Consumers
+- Entities that use the interfaces (paths) of the Open-Core.
+- Assigned to groups which have access to specific paths.
+- Permissions for paths are regulated through group assignments.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+#### Relations
+- Each resource is interconnected through a relation document.
+- Join tables or graphs enable a flexible permission model.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+This service functions as a web microservice that can be orchestrated through a gateway and as an npm package to provide functionalities to other CLM extensions. A microservice can build upon the classes/types/interfaces of this service to extend basic functionalities.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## Setup for Testing the Webserver
+1. The service's configuration can be customized by referring to the `.env` file. Within this file, the `MARIA_CONFIG` variable should be updated with the appropriate values to reflect the user's specific database settings. Refer to the `MARIA_CONFIG` variable in the table below to see which comma seperated value refers to which respective database setting.  
+2. `npm install`
+3. Copy the file `.env.default`, rename it to `.env` and overwrite necessary properties.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+   The following table gives an overview of the settings you can change through the environment variables:
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+   | Name                   | Example                                                                           | Required (Yes/No) | Description                                                                                                     |
+   | ---------------------- | --------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------- |
+   | `PORT`                 | `3001`                                                                            | Yes               | The port on which the service should be deployed.                                                               |
+   | `DEPLOY_URL`           | `HOST_PROTOCOL://HOST_ADDRESS:GATEWAY_PORT/api`                                   | Yes               | The address where all microservices are to be orchestrated. A `/api` must be appended.                          |
+   | `MARIA_CONFIG`         | `MARIA_HOST_ADDRESS\|MARIA_PORT\|MARIA_DATABASE\|MARIA_USER\|MARIA_USER_PASSWORD` | Yes               | A slash-separated string containing the configured parameters for MariaDB.                                      |
+   | `CLM_ROOT_USER`        | `example@example.com`                                                             | Yes               | The username of the admin user installed during CLM setup.                                                      |
+   | `CLM_ROOT_PASSWORD`    | `CLM_ROOT_PASSWORD`                                                               | Yes               | The password of the admin user installed during CLM setup.                                                      |
+   | `TOKEN_SECRET`         | `secret`                                                                          | Yes               | Secret used to sign and verify JWTs for authentication. Have to be the same across all modules of the Open-Core |
+   | `SMTP_FROM`            | `example@example.de`                                                              | No                | Configurations for the SMTP service used for sending emails.                                                    |
+   | `SMTP_HOST`            | `smtp.example.com`                                                                | No                | Configurations for the SMTP service used for sending emails.                                                    |
+   | `SMTP_PORT`            | `465`                                                                             | No                | Configurations for the SMTP service used for sending emails.                                                    |
+   | `SMTP_USER`            | `example@user.de`                                                                 | No                | Configurations for the SMTP service used for sending emails.                                                    |
+   | `SMTP_PASS`            | `examplepassword`                                                                 | No                | Configurations for the SMTP service used for sending emails.                                                    |
+   | `REDIS_CONFIG`         | `localhost:6379`                                                                  | No                | Configuration information for Redis. Defaults to example value if not set.                                      |
+   | `DISABLE_ERR_RESPONSE` | `true`                                                                            | No                | Flag to control whether error responses should be returned. Defaults to example value if not set.               |
+   | `OIDC_PROVIDERS`       | [{"authorization_endpoint": "http://to_authorization_endpoint" }]                 | No                | Whether to allow access_token from external OIDC providers                                                      |
+   | `API_TOKEN`            |                                                                                   | No                | Defaults to MGMT_SERVICE if not set. Needed to access the CLM-API
+4. `npm run dev` for development with nodemon.
+5. `npm start` for deployment.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+6. Subsequently, the JSON representation of the Open-API specification should be accessible at:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+`http://localhost:${PORT}/core/swagger`
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+**To access the API endpoints detailed in the Open-API specification, an API token is required. This token is generated during the initialization of the clm-core module. Please refer to the .env table**
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## For Consumption as an NPM Package
+
+- Documentation about all exposed modules can be found under `/docs`.
+- Include the package in your project's `package.json` dependencies:
+
+    ```json
+    "dependencies": {
+        "clm-core": "git+https://$token:$token@$url_of_package#$branch_name"
+    }
+    ```
+
+- To use database-dependent DAOs/DTOs, inject `MARIA_CONFIG` into the environment before importing the module:
+
+    a) Manually in the code:
+
+    ```javascript
+    process.env.MARIA_CONFIG = "localhost|3306|clm|root|12345";
+    import * as core from 'clm-core';
+    ```
+
+    b) Through `.env` file:
+
+    ```.env
+    MARIA_CONFIG=localhost|3306|clm|root|12345
+    ```
+
+    ```javascript
+    import * as core from 'clm-core';
+    ```
+
+# Swagger Documentation
+
+- Accessible routes for this microservice are available at `http://localhost:PORT/core/swagger` after starting the service.
+- Ensure to set up a reverse proxy to route traffic to the respective microservices as shown in the table.
+
+### Changelog
+
+The changelog can be found in the [CHANGELOG.md](CHANGELOG.md) file.
+
+## Get in touch with a developer
+
+Please see the file [AUTHORS.md](AUTHORS.md) to get in touch with the authors of this project.
+We will be happy to answer your questions at {clm@fokus.fraunhofer.de}
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
 
----
-
-## Runtime Health Endpoints (Extension)
-
-Two lightweight endpoints are exposed by the service:
-
-```
-GET /health
-```
-Returns plain text `OK` if the HTTP server is alive (no DB check).
-
-```
-GET /live
-```
-Performs a minimal `SELECT 1` against the PostgreSQL connection pool (timeout 2s). Useful for Kubernetes readiness/liveness probes when database availability is required.
-
-Successful response:
-
-```json
-{ "status": "UP", "db": "UP", "durationMs": 5 }
-```
-
-Failure / degraded response (HTTP 503):
-
-```json
-{ "status": "DEGRADED", "db": "DOWN", "error": "DB ping timeout", "durationMs": 2003 }
-```
-
-Configuration:
-`PG_POOL_PING_INTERVAL_MS` controls the internal heartbeat that keeps connections warm and detects disconnects early (default 30000 ms).
+The project is made available under the license in the file [LICENSE.txt](license.txt)
