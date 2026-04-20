@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,8 +27,6 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
-
 import express from 'express'
 import UrlPattern from 'url-pattern'
 import RelationBDTO, { Role } from '../models/Relation/RelationBDTO'
@@ -37,11 +35,10 @@ import { userBDTOInstance } from '../models/User/UserBDTO'
 import { jwtServiceInstance } from '../services/jwtService'
 import jwt, { JwtPayload } from 'jsonwebtoken'
 import { CONFIG } from '../config/config'
-import axios from 'axios'
 import { RessourcePermissions } from '../models/Role/RoleModel'
 import RoleDAO from '../models/Role/RoleDAO'
-import GroupDAO from '../models/Group/GroupDAO'
-import GroupModel from '../models/Group/GroupModel'
+import { findTrustedProviderByIssuer } from '../services/OIDCIssuerTrust'
+import { syncGroupsAndMembershipsFromClaims } from '../services/OIDCGroupSyncService'
 
 
 // Get enriched providers (with jwks_uri fallback)
@@ -192,8 +189,7 @@ export class AuthGuard {
                 : req.originalUrl;
             //query-param
             requestUrl = requestUrl.replace(/\?.+/, '').trim();
-            requestUrl = requestUrl.replace(/\./g, '');
-            requestUrl = requestUrl.replace('@', '')
+            requestUrl = requestUrl.replace(/[^a-zA-Z0-9\-_\/]/g, '');
 
             try {
                 let match = req.apiToken.paths?.map((path) => [new UrlPattern(path.route), path.scope] as [UrlPattern, string[]])
@@ -227,33 +223,35 @@ export class AuthGuard {
             if (!token) return next({ message: 'not valid x-access-token header!', status: 401 });
 
             try {
-                let decoded = jwt.decode(token) as JwtPayload
-                let iss = decoded.iss
+                const decoded = jwt.decode(token) as JwtPayload | null
+                const issuer = decoded?.iss
+                if (!issuer) return next({ message: 'Missing issuer claim', status: 401 })
+
                 // Flag um zwischen internen und externen Tokens zu unterscheiden
                 let isExternalToken = false
-                
-                if (iss !== CONFIG.DEPLOY_URL && !CONFIG.ALLOWED_ISSUERS.includes(iss)) {
+                let verifiedToken: JwtPayload
+
+                if (issuer !== CONFIG.DEPLOY_URL && !CONFIG.ALLOWED_ISSUERS.includes(issuer)) {
                     isExternalToken = true
                     const providers = getOIDCProviders()
-                    const provider = providers.find((provider: any) => provider.authorization_endpoint.includes(iss))
-                    if (!provider) return next({ message: `Invalid issuer: ${iss}! `, status: 401 });
-                    // JWKS based verification replaces userinfo endpoint call
+                    const provider = findTrustedProviderByIssuer(providers, issuer)
+                    if (!provider) return next({ message: `Invalid issuer: ${issuer}! `, status: 401 });
+                    // JWKS based verification replaces userinfo endpoint call.
                     try {
-                        const { verifyExternalToken } = await import('../services/jwksService');
-                        await verifyExternalToken(token);
+                        verifiedToken = await jwtServiceInstance.verifyToken(token) as JwtPayload
                     } catch (err: any) {
                         console.error(err)
                         return next({ status: err.status || 401, message: err.message || 'IdP validation error with provided token...' })
                     }
                 } else {
-                    await jwtServiceInstance.verifyToken(token)
+                    verifiedToken = await jwtServiceInstance.verifyToken(token) as JwtPayload
                 }
 
                 let user;
-                
-                // Für interne Tokens: Direkter Lookup via sub (keine Fallbacks, keine Claims)
+
+                // Internal and external flows must both use verified claims from the validated token.
                 if (!isExternalToken) {
-                    const userId = decoded.sub as string
+                    const userId = verifiedToken.sub as string
                     try {
                         user = await userBDTOInstance.findById(userId)
                     } catch (_) {
@@ -263,7 +261,7 @@ export class AuthGuard {
                     // Für externe Tokens: Erweiterte Lookup-Logik mit trainingId/sub Claims
                     const trainingKey = CONFIG.OIDC_CLAIM_TRAINING_ID
                     const subKey = CONFIG.OIDC_CLAIM_SUB
-                    const preferredId = ((decoded as any)?.[trainingKey] as string) || ((decoded as any)?.[subKey] as string) || (decoded.sub as string)
+                    const preferredId = ((verifiedToken as any)?.[trainingKey] as string) || ((verifiedToken as any)?.[subKey] as string) || (verifiedToken.sub as string)
                     try {
                         user = await userBDTOInstance.findById(preferredId)
                     } catch (_) {
@@ -271,18 +269,18 @@ export class AuthGuard {
                         const byIdentity = (await userBDTOInstance.findByAttributes({ identityId: preferredId }))[0]
                         if (byIdentity) user = byIdentity
                         if (!user) {
-                            const byEmail = (await userBDTOInstance.findByAttributes({ email: preferredId }))[0] || (await userBDTOInstance.findByAttributes({ email: (decoded as any)?.email }))[0]
+                            const byEmail = (await userBDTOInstance.findByAttributes({ email: preferredId }))[0] || (await userBDTOInstance.findByAttributes({ email: (verifiedToken as any)?.email }))[0]
                             if (byEmail) user = byEmail
                         }
                         if (!user) return next({ status: 401, message: 'User not found for token subject' })
                     }
-                    
+
                     // Gruppen-Synchronisierung nur für externe Tokens
                     if (CONFIG.OIDC_SYNC_GROUPS_ON_AUTH) {
                         try {
-                            const groupsRaw = (decoded as any)?.[CONFIG.OIDC_CLAIM_GROUPS] as string | undefined
+                            const groupsRaw = (verifiedToken as any)?.[CONFIG.OIDC_CLAIM_GROUPS] as string | undefined
                             if (groupsRaw && typeof groupsRaw === 'string') {
-                                await AuthGuard.syncGroupsAndMembershipsFromClaims(user._id, groupsRaw)
+                                await syncGroupsAndMembershipsFromClaims(user._id, groupsRaw)
                             }
                         } catch (e) {
                             // Do not block request on group sync errors
@@ -290,7 +288,7 @@ export class AuthGuard {
                         }
                     }
                 }
-                
+
                 req.requestingUser = user
                 // req.app.locals.user = req.locals?.user;
                 return next();
@@ -371,106 +369,6 @@ export class AuthGuard {
         return (req, res, next) => {
             if (req.requestingUser?._id !== req.params.id && !req.requestingUser?.isSuperAdmin) return next({ message: 'Cannot access another user!', status: 400 })
             return next()
-        }
-    }
-
-
-    /** Normalize a group token by trimming and unifying delimiter spacing */
-    private static normalizeGroupToken(raw: string): string {
-        return (raw || '').replace(/\s*_\s*/g, CONFIG.OIDC_GROUP_ROLE_DELIMITER).replace(/\s+/g, ' ').trim()
-    }
-
-    /** Parse a single group entry into base displayName and optional suffix role token */
-    private static parseGroupEntry(entry: string): { base: string, suffix: string | null } {
-        const cleaned = this.normalizeGroupToken(entry)
-        if (!cleaned) return { base: '', suffix: null }
-        const delim = CONFIG.OIDC_GROUP_ROLE_DELIMITER
-        const lastIdx = cleaned.lastIndexOf(delim)
-        if (lastIdx < 0) return { base: cleaned, suffix: null }
-        const base = cleaned.substring(0, lastIdx)
-        const rawSuffix = cleaned.substring(lastIdx + delim.length)
-        return { base: base || cleaned, suffix: rawSuffix || null }
-    }
-
-    /** Map suffix token to internal role display name */
-    private static suffixToInternalRole(suffix: string | null): 'Learner' | 'Instructor' | 'OrgAdmin' {
-        const s = (suffix || '').trim().toLowerCase()
-        const sufLearner = CONFIG.OIDC_GROUP_SUFFIX_LEARNER.toLowerCase()
-        const sufInstructor = CONFIG.OIDC_GROUP_SUFFIX_INSTRUCTOR.toLowerCase()
-        const sufAdmin = CONFIG.OIDC_GROUP_SUFFIX_ADMIN.toLowerCase()
-        if (s === sufInstructor) return (CONFIG.OIDC_ROLEMAP_INSTRUCTOR as 'Instructor')
-        if (s === sufAdmin) return (CONFIG.OIDC_ROLEMAP_ADMIN as 'OrgAdmin')
-        if (s === sufLearner) return (CONFIG.OIDC_ROLEMAP_LEARNER as 'Learner')
-        return (CONFIG.OIDC_ROLEMAP_LEARNER as 'Learner')
-    }
-
-    /** Ensure a group exists with the given role connected; create if missing */
-    private static async ensureGroupWithRole(displayName: string, roleName: 'Learner' | 'Instructor' | 'OrgAdmin') {
-        const role = await RoleDAO.findByRoleName(roleName)
-        const [groups, relations] = await Promise.all([
-            GroupDAO.findByAttributes({ displayName }),
-            RelationBDTO.findAll()
-        ])
-        for (const g of groups) {
-            const rel = relations.find(r => r.fromType === 'group' && r.fromId === g._id && r.toType === 'role')
-            if (rel && rel.toId === role._id) return g
-        }
-        return GroupDAO.insert(new GroupModel({ displayName }), { role: role._id })
-    }
-
-    /** Ensure the hierarchy Admin -> Instructor -> Learner exists for a base group */
-    private static async ensureHierarchy(groupsByRole: Partial<Record<'Learner'|'Instructor'|'OrgAdmin', GroupModel>>) {
-        const admin = groupsByRole['OrgAdmin']
-        const instructor = groupsByRole['Instructor']
-        const learner = groupsByRole['Learner']
-        if (admin && instructor) {
-            try { await RelationBDTO.addGroupToGroup(admin._id, instructor._id) } catch (_) { /* ignore */ }
-        } else if (admin && learner) {
-            try { await RelationBDTO.addGroupToGroup(admin._id, learner._id) } catch (_) { /* ignore */ }
-        }
-        if (instructor && learner) {
-            try { await RelationBDTO.addGroupToGroup(instructor._id, learner._id) } catch (_) { /* ignore */ }
-        }
-    }
-
-    /** Parse the claim and synchronize user's memberships */
-    private static async syncGroupsAndMembershipsFromClaims(userId: string, groupsRaw: string) {
-        // Keep displayName exactly as in token; only normalize for parsing role/base
-        const items = (groupsRaw || '').split(',').map(s => s.trim()).filter(Boolean)
-        const baseToRoleName = new Map<string, Map<'Learner'|'Instructor'|'OrgAdmin', string>>()
-        for (const raw of items) {
-            const { base, suffix } = this.parseGroupEntry(raw)
-            if (!base) continue
-            const role = this.suffixToInternalRole(suffix)
-            if (!baseToRoleName.has(base)) baseToRoleName.set(base, new Map())
-            baseToRoleName.get(base)!.set(role, raw)
-        }
-        const desired: string[] = []
-        for (const [base, roleNameMap] of baseToRoleName.entries()) {
-            const groupsByRole: Partial<Record<'Learner'|'Instructor'|'OrgAdmin', GroupModel>> = {}
-            const roles = roleNameMap.size > 0
-                ? Array.from(roleNameMap.keys()) as Array<'Learner'|'Instructor'|'OrgAdmin'>
-                : (['Learner'] as Array<'Learner'>)
-            for (const r of roles) {
-                const displayName = roleNameMap.get(r) || base
-                const g = await this.ensureGroupWithRole(displayName, r)
-                groupsByRole[r] = g
-                desired.push(g._id)
-            }
-            await this.ensureHierarchy(groupsByRole)
-        }
-        const current = await RelationBDTO.getUsersGroups(userId)
-        const currentIds = new Set(current.map(g => g._id))
-        const desiredIds = new Set(desired)
-        for (const gid of desiredIds) {
-            if (!currentIds.has(gid)) {
-                try { await RelationBDTO.addUserToGroup(userId, gid) } catch (_) { /* ignore */ }
-            }
-        }
-        for (const gid of currentIds) {
-            if (!desiredIds.has(gid)) {
-                try { await RelationBDTO.removeUserFromGroup(userId, gid) } catch (_) { /* ignore */ }
-            }
         }
     }
 }

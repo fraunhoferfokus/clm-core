@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,7 +27,6 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
  import { checkSchema, Schema } from 'express-validator'
 import UserDAO from '../models/User/UserDAO'
 import PathDAO from '../models/Path/PathDAO'
@@ -110,12 +109,28 @@ const createSchema: Schema = {
         exists: true,
         isString: true
     },
+    active: {
+        in: ['body'],
+        optional: true,
+        isBoolean: {
+            errorMessage: 'active must be boolean'
+        },
+        toBoolean: true
+    },
 
     ...sharedSchema
 }
 
 const updateSchema: Schema = {
-    ...sharedSchema
+    ...sharedSchema,
+    active: {
+        in: ['body'],
+        optional: true,
+        isBoolean: {
+            errorMessage: 'active must be boolean'
+        },
+        toBoolean: true
+    }
 }
 
 

@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,7 +27,6 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
 import BaseModelController from "./BaseModelController";
 import { UserModel } from '../models/User/UserModel';
 import UserFDTO from "../models/User/UserFDTO";
@@ -45,7 +44,8 @@ import { CONFIG } from "../config/config";
 
 
 const Cryptr = require('cryptr');
-const cryptr = new Cryptr('secret');
+// Verification links must use a configured secret instead of a repository-wide constant.
+const cryptr = new Cryptr(CONFIG.VERIFICATION_TOKEN_SECRET);
 
 const basePath = CONFIG.BASE_PATH || '/core'
 const baseLocation = `${basePath}/users`
@@ -64,6 +64,9 @@ class UserController extends BaseModelController<typeof UserDAO, UserModel, User
     getUsersGroups(): express.Handler {
         return (req, res, next) => {
             try {
+                if (req.params.id && req.params.id !== req.requestingUser?._id && !req.requestingUser?.isSuperAdmin) {
+                    return next({ status: 403, message: 'Cannot access another user groups' })
+                }
                 const user = req.requestingUser
                 return RelationBDTO.getUsersGroups(user?._id!).then((groups) => res.json(groups))
             } catch (err) {
@@ -74,6 +77,9 @@ class UserController extends BaseModelController<typeof UserDAO, UserModel, User
     getUsersRoles(): express.Handler {
         return (req, res, next) => {
             try {
+                if (req.params.id && req.params.id !== req.requestingUser?._id && !req.requestingUser?.isSuperAdmin) {
+                    return next({ status: 403, message: 'Cannot access another user roles' })
+                }
                 const user = req.requestingUser
                 return RelationBDTO.getUsersGroups(user?._id!).then((groups) => {
                     let adminGroup = []
@@ -136,6 +142,9 @@ class UserController extends BaseModelController<typeof UserDAO, UserModel, User
 
     usersPermissions: () => Handler = () => async (req, res, next) => {
         try {
+            if (req.params.id && req.params.id !== req.requestingUser?._id && !req.requestingUser?.isSuperAdmin) {
+                return next({ status: 403, message: 'Cannot access another user permissions' })
+            }
             const userPermissions = await RelationBDTO.getUsersPermissions(req.requestingUser!._id!)
             return res.json(userPermissions)
         } catch (err) {

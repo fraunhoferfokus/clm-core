@@ -12,7 +12,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -20,7 +20,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -42,22 +42,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
+const config_1 = require("../config/config");
+const AuthGuard_1 = require("../handlers/AuthGuard");
 const CoreLib_1 = require("../lib/CoreLib");
+const UserDAO_1 = __importDefault(require("../models/User/UserDAO"));
 const AuthController_1 = __importDefault(require("./AuthController"));
+const MgmtRoleController_1 = __importDefault(require("./MgmtRoleController"));
 const MgtmAPITokenController_1 = __importDefault(require("./MgtmAPITokenController"));
 const MgtmGroupController_1 = __importDefault(require("./MgtmGroupController"));
 const MgtmUserController_1 = __importDefault(require("./MgtmUserController"));
-const UserController_1 = __importDefault(require("./UserController"));
-const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
-const UserDAO_1 = __importDefault(require("../models/User/UserDAO"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const config_1 = require("../config/config");
 const OIDCController_1 = __importDefault(require("./OIDCController"));
-const MgmtRoleController_1 = __importDefault(require("./MgmtRoleController"));
-const ResourceController_1 = __importDefault(require("./ResourceController"));
-const AuthGuard_1 = require("../handlers/AuthGuard");
 const OIDCClientController_1 = __importDefault(require("./OIDCClientController"));
 const OIDCProviderController_1 = __importDefault(require("./OIDCProviderController"));
+const ResourceController_1 = __importDefault(require("./ResourceController"));
+const UserController_1 = __importDefault(require("./UserController"));
 /**
  * @openapi
  * components:
@@ -159,10 +159,10 @@ EntryPointController.use(CoreLib_1.AuthGuard.requireAPIToken(EXCLUDED_PATHS));
 EntryPointController.use('/resources', ResourceController_1.default.router);
 // CONFIG.DISABLE_LEGACCY_FINDOO = true
 EntryPointController.get('/mgmt/users/:id/token', 
-// Neue Logik: Wenn Trusted Clients erlaubt sind -> Permission Checker überspringen
-config_1.CONFIG.ALLOW_TRUSTED_CLIENTS ?
-    ((req, res, next) => next()) :
-    CoreLib_1.AuthGuard.permissionChecker('user', [{ in: 'path', name: 'id' }], AuthGuard_1.CrudAccess.ReadWriteDeleteUpdate), ((req, res, next) => {
+// Keep the legacy trusted-client bypass available, but make it opt-in via secure default config.
+config_1.CONFIG.ALLOW_TRUSTED_CLIENTS
+    ? ((req, res, next) => next())
+    : CoreLib_1.AuthGuard.permissionChecker('user', [{ in: 'path', name: 'id' }], AuthGuard_1.CrudAccess.ReadWriteDeleteUpdate), ((req, res, next) => {
     return UserDAO_1.default.findById(req.params.id)
         .then((user) => CoreLib_1.jwtServiceInstance.createToken(user))
         .then((token) => {

@@ -57,9 +57,9 @@
     <h3>User</h3>
     <pre>
         <code>
-    interne user_id: <%- user._id -%>
+    interne user_id: <%= user._id %>
                 <br>
-    externe user_id: <%- user.familyName -%>
+    externe user_id: <%= user.familyName %>
         </code>
     </pre>
 
@@ -68,19 +68,19 @@
     <pre>
         <code>
         <div class="token-details">
-            <p><strong>idp_access_token:</strong> <%- access_token %></p>
-            <p><strong>idp_refresh_token:</strong> <%- refresh_token %></p>
-            <p><strong>idp_access_token_expires_in:</strong> <%- access_token_expires_in %></p>
-            <p><strong>idp_refresh_token_expires_in:</strong> <%- refresh_token_expires_in %></p>
+            <p><strong>idp_access_token:</strong> <%= access_token %></p>
+            <p><strong>idp_refresh_token:</strong> <%= refresh_token %></p>
+            <p><strong>idp_access_token_expires_in:</strong> <%= access_token_expires_in %></p>
+            <p><strong>idp_refresh_token_expires_in:</strong> <%= refresh_token_expires_in %></p>
         </div>
     </code>
 </pre>
 
     <h3>Course Structure:</h3>
-    <pre><code><%- course_structure %></code></pre>
+    <pre><code><%= course_structure_json %></code></pre>
 
     <button class="logout-btn">
-        <a href="<%- end_session_endpoint -%>" style="color: inherit; text-decoration: none;">Logout</a>
+        <a href="<%= end_session_endpoint %>" style="color: inherit; text-decoration: none;">Logout</a>
     </button>
 </body>
 

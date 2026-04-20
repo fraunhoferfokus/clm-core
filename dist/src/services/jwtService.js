@@ -12,7 +12,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -20,7 +20,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -45,6 +45,7 @@ exports.jwtServiceInstance = exports.JwtService = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = require("../config/config");
 const jwksService_1 = require("./jwksService");
+const OIDCIssuerTrust_1 = require("./OIDCIssuerTrust");
 const OIDC_PROVIDER = config_1.CONFIG.OIDC_PROVIDERS;
 /**
  * Service for creating access/refresh token for user and verify if a token is valid
@@ -52,6 +53,7 @@ const OIDC_PROVIDER = config_1.CONFIG.OIDC_PROVIDERS;
  */
 class JwtService {
     constructor() {
+        this.INTERNAL_JWT_ALGORITHMS = ['HS256'];
         /**
          * Time when the refresh token expires
          */
@@ -60,11 +62,12 @@ class JwtService {
          * Time when the access token expires
          */
         this.ACCESS_EXPIRATION = '3h';
+        this.REFRESH_SECRET = `${config_1.CONFIG.REFRESH_TOKEN_SECRET}`;
         /**
          * Secret for verifying or creating signature for jwt
          * @defaultValue secret
          */
-        this.SECRET = `${config_1.CONFIG.TOKEN_SECRET}` || "secret";
+        this.SECRET = `${config_1.CONFIG.TOKEN_SECRET}`;
     }
     /**
      * Verify a token
@@ -73,20 +76,22 @@ class JwtService {
      */
     verifyToken(token, secret = this.SECRET) {
         return __awaiter(this, void 0, void 0, function* () {
-            let decoded = jsonwebtoken_1.default.decode(token);
-            let iss = decoded.iss;
+            const decoded = jsonwebtoken_1.default.decode(token);
+            const iss = decoded === null || decoded === void 0 ? void 0 : decoded.iss;
+            if (!iss)
+                throw ({ message: 'Missing issuer claim', status: 401 });
             if (iss !== config_1.CONFIG.DEPLOY_URL) {
-                const provider = OIDC_PROVIDER.find((provider) => provider.authorization_endpoint.includes(iss));
+                const provider = (0, OIDCIssuerTrust_1.findTrustedProviderByIssuer)(OIDC_PROVIDER, iss);
                 if (!provider)
                     throw ({ message: `Invalid issuer: ${iss}! `, status: 401 });
-                // New: verify via JWKS instead of calling userinfo endpoint
+                // External claims must come from the verified token payload, not from decode().
                 const verified = yield (0, jwksService_1.verifyExternalToken)(token);
                 return verified;
             }
             else {
                 try {
                     const decodedToken = yield new Promise((resolve, reject) => {
-                        jsonwebtoken_1.default.verify(token, secret, function (err, decoded) {
+                        jsonwebtoken_1.default.verify(token, secret, { algorithms: this.INTERNAL_JWT_ALGORITHMS }, function (err, decoded) {
                             if (err)
                                 reject({ message: "Token not valid or expired", status: 400 });
                             return resolve(decoded);
@@ -112,6 +117,7 @@ class JwtService {
             jsonwebtoken_1.default.sign({
                 _id: payload._id,
             }, secret, {
+                algorithm: 'HS256',
                 expiresIn: expiration, subject: payload._id, issuer: config_1.CONFIG.DEPLOY_URL
             }, function (err, token) {
                 if (err)
@@ -128,7 +134,7 @@ class JwtService {
     createAccessAndRefreshToken(payload) {
         return Promise.all([
             this.createToken(payload, this.ACCESS_EXPIRATION),
-            this.createToken(payload, this.REFRESH_EXPIRATION, this.SECRET + payload.password)
+            this.createToken(payload, this.REFRESH_EXPIRATION, this.REFRESH_SECRET)
         ]);
     }
 }

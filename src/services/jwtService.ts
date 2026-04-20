@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,11 +27,11 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
 import jwt, { JwtPayload } from 'jsonwebtoken'
 import { CONFIG } from '../config/config';
 import axios from 'axios';
 import { verifyExternalToken } from './jwksService';
+import { findTrustedProviderByIssuer } from './OIDCIssuerTrust';
 
 const OIDC_PROVIDER = CONFIG.OIDC_PROVIDERS
 
@@ -69,6 +69,7 @@ export interface TokenVerifyResult {
  */
 
 export class JwtService {
+    INTERNAL_JWT_ALGORITHMS: jwt.Algorithm[] = ['HS256']
 
     /**
      * Time when the refresh token expires
@@ -78,11 +79,12 @@ export class JwtService {
      * Time when the access token expires
      */
     ACCESS_EXPIRATION = '3h'
+    REFRESH_SECRET = `${CONFIG.REFRESH_TOKEN_SECRET}`
     /**
      * Secret for verifying or creating signature for jwt
      * @defaultValue secret
      */
-    SECRET = `${CONFIG.TOKEN_SECRET}` || "secret"
+    SECRET = `${CONFIG.TOKEN_SECRET}`
 
     /**
      * Verify a token
@@ -91,19 +93,20 @@ export class JwtService {
      */
 
     async verifyToken(token: string, secret = this.SECRET) {
+        const decoded = jwt.decode(token) as JwtPayload | null
+        const iss = decoded?.iss
+        if (!iss) throw ({ message: 'Missing issuer claim', status: 401 })
 
-        let decoded = jwt.decode(token) as JwtPayload
-        let iss = decoded.iss
         if (iss !== CONFIG.DEPLOY_URL) {
-            const provider = OIDC_PROVIDER.find((provider: any) => provider.authorization_endpoint.includes(iss))
+            const provider = findTrustedProviderByIssuer(OIDC_PROVIDER, iss)
             if (!provider) throw ({ message: `Invalid issuer: ${iss}! `, status: 401 });
-            // New: verify via JWKS instead of calling userinfo endpoint
+            // External claims must come from the verified token payload, not from decode().
             const verified = await verifyExternalToken(token)
             return verified as any
         } else {
             try {
                 const decodedToken = await (new Promise((resolve, reject) => {
-                    jwt.verify(token, secret, function (err: any, decoded: any) {
+                    jwt.verify(token, secret, { algorithms: this.INTERNAL_JWT_ALGORITHMS }, function (err: any, decoded: any) {
                         if (err) reject({ message: "Token not valid or expired", status: 400 })
                         return resolve(decoded);
                     })
@@ -129,6 +132,7 @@ export class JwtService {
             jwt.sign({
                 _id: payload._id,
             }, secret, {
+                algorithm: 'HS256',
                 expiresIn: expiration, subject: payload._id, issuer:
                     CONFIG.DEPLOY_URL
             }, function (err, token) {
@@ -146,7 +150,7 @@ export class JwtService {
     createAccessAndRefreshToken(payload: TokenPayload) {
         return Promise.all([
             this.createToken(payload, this.ACCESS_EXPIRATION),
-            this.createToken(payload, this.REFRESH_EXPIRATION, this.SECRET + payload.password)
+            this.createToken(payload, this.REFRESH_EXPIRATION, this.REFRESH_SECRET)
         ]) as Promise<[string, string]>
     }
 }

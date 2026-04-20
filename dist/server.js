@@ -12,7 +12,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -20,7 +20,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -42,8 +42,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ROOT_DIR = void 0;
-const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
+const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const path_1 = __importDefault(require("path"));
 const config_1 = require("./src/config/config");
@@ -51,19 +52,36 @@ const configureDeps_1 = __importDefault(require("./src/config/configureDeps"));
 const EntryPointController_1 = __importDefault(require("./src/controllers/EntryPointController"));
 const ErrorHandler_1 = __importDefault(require("./src/handlers/ErrorHandler"));
 const pgPool_1 = __importDefault(require("./src/models/pgPool"));
-dotenv_1.default.config();
 exports.ROOT_DIR = process.cwd();
+function createSlidingWindowRateLimiter(windowMs, maxRequests, matches) {
+    const hits = new Map();
+    return (req, res, next) => {
+        if (!matches(req))
+            return next();
+        const key = `${req.ip}:${req.path}`;
+        const now = Date.now();
+        const windowStart = now - windowMs;
+        const current = (hits.get(key) || []).filter((value) => value > windowStart);
+        current.push(now);
+        hits.set(key, current);
+        if (current.length > maxRequests) {
+            return res.status(429).json({ message: 'Too many authentication requests. Please try again later.' });
+        }
+        return next();
+    };
+}
 //@ts-ignore
 global.__basedir = __dirname;
 const app = (0, express_1.default)();
 const PORT = config_1.CONFIG.PORT;
+app.set('trust proxy', 1);
 app.use(function (req, res, next) {
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-access-token, x-token-renewed, x-api-key');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS');
     next();
 });
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '1mb' }));
 const basePath = config_1.CONFIG.BASE_PATH || '/core';
 const EXCLUDED_PATHS = [
     `${basePath}/swagger`,
@@ -79,6 +97,17 @@ const EXCLUDED_PATHS = [
     `${basePath}/sso/oidc/broker/logout/redirect`,
     `/health`
 ];
+// Limit brute-force attempts on authentication and token exchange endpoints.
+app.use(createSlidingWindowRateLimiter(15 * 60 * 1000, 100, (req) => {
+    const authPaths = new Set([
+        `${basePath}/authentication`,
+        `${basePath}/authentication/refresh`,
+        `${basePath}/sso/oidc`,
+        `${basePath}/sso/oidc/backend/login`,
+        `${basePath}/sso/oidc/access_token_by_code`
+    ]);
+    return authPaths.has(req.path);
+}));
 app.get('/health', (req, res) => res.send('OK'));
 app.get('/live', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const start = Date.now();

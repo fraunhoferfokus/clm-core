@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,7 +27,6 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
 import express from 'express';
 import { CONFIG } from "../config/config";
 import { AuthGuard } from "../handlers/AuthGuard";
@@ -71,8 +70,9 @@ class UserMGMTController extends BaseModelController<typeof UserDAO, UserModel, 
                 const user = await UserDAO.findById(req.params.id)
                 if (user.isSuperAdmin && !await PasswordService.verifyPassword(req.body.oldPassword, user.password)) {
                     next({ message: "Need old password of super-admin", status: 400 })
+                    return { proceed: false }
                 }
-                return Promise.resolve({ proceed: true })
+                return { proceed: true }
             }
             ,
             undefined)
@@ -83,7 +83,7 @@ class UserMGMTController extends BaseModelController<typeof UserDAO, UserModel, 
             try {
                 let targetedUser = await UserDAO.findById(req.params.id)
                 if (targetedUser.isSuperAdmin) {
-                    next({ message: "Cannot delete super-admin", status: 400 })
+                    return next({ message: "Cannot delete super-admin", status: 400 })
                 }
                 return super.deleteOneDocument()(req, res, next)
             } catch (err) {

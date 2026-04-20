@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,9 +27,9 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
-import cors from 'cors'
 import dotenv from 'dotenv'
+dotenv.config()
+import cors from 'cors'
 import express from 'express'
 import path from 'path'
 import { CONFIG } from './src/config/config'
@@ -37,14 +37,32 @@ import configureDependencies from './src/config/configureDeps'
 import EntryPointController from './src/controllers/EntryPointController'
 import errHandler from './src/handlers/ErrorHandler'
 import pool from './src/models/pgPool'
-dotenv.config()
-
 export const ROOT_DIR = process.cwd()
+
+function createSlidingWindowRateLimiter(windowMs: number, maxRequests: number, matches: (req: express.Request) => boolean): express.Handler {
+    const hits = new Map<string, number[]>()
+    return (req, res, next) => {
+        if (!matches(req)) return next()
+
+        const key = `${req.ip}:${req.path}`
+        const now = Date.now()
+        const windowStart = now - windowMs
+        const current = (hits.get(key) || []).filter((value) => value > windowStart)
+        current.push(now)
+        hits.set(key, current)
+
+        if (current.length > maxRequests) {
+            return res.status(429).json({ message: 'Too many authentication requests. Please try again later.' })
+        }
+        return next()
+    }
+}
 
 //@ts-ignore
 global.__basedir = __dirname
 const app = express()
 const PORT = CONFIG.PORT
+app.set('trust proxy', 1)
 
 app.use(function (req, res, next) {
     res.header(
@@ -58,7 +76,7 @@ app.use(function (req, res, next) {
     next();
 });
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
 
 const basePath = CONFIG.BASE_PATH || '/core';
 const EXCLUDED_PATHS = [
@@ -75,6 +93,18 @@ const EXCLUDED_PATHS = [
     `${basePath}/sso/oidc/broker/logout/redirect`,
     `/health`
 ]
+
+// Limit brute-force attempts on authentication and token exchange endpoints.
+app.use(createSlidingWindowRateLimiter(15 * 60 * 1000, 100, (req) => {
+    const authPaths = new Set([
+        `${basePath}/authentication`,
+        `${basePath}/authentication/refresh`,
+        `${basePath}/sso/oidc`,
+        `${basePath}/sso/oidc/backend/login`,
+        `${basePath}/sso/oidc/access_token_by_code`
+    ])
+    return authPaths.has(req.path)
+}))
 
 app.get('/health', (req, res) => res.send('OK'))
 app.get('/live', async (req, res) => {

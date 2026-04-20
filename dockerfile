@@ -6,7 +6,7 @@
 # Hinweis: Hier wird bewusst npm verwendet; im Runtime-Image wird npm entfernt,
 # damit die bekannte Schwachstelle (tar@7.5.1) nicht mehr vorhanden ist.
 ###############################################
-FROM node:24-alpine3.22 AS builder
+FROM node:current-alpine3.22 AS builder
 
 # Benötigte Tools für Build (z. B. git)
 RUN apk add --no-cache git

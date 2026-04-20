@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,7 +27,6 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
  
 import express, { Handler } from 'express'
 // import BaseDAO from '../models/AdapterInterface'
@@ -37,6 +36,11 @@ import BaseDatamodel from '../models/BaseDatamodel'
 import BaseFrontendDTO from '../models/BaseFrontendDTO'
 import { checkValidationError } from '../handlers/ExpressValidationMW'
 import { matchedData } from 'express-validator'
+
+function isPlainSearchObject(value: unknown): value is Record<string, string | number | boolean | null> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+    return Object.values(value).every((entry) => ['string', 'number', 'boolean'].includes(typeof entry) || entry === null)
+}
 
 /**
  * A controller which offers CRUD opeartions as REST-Interface on a certain resource.
@@ -132,7 +136,15 @@ export class BaseModelController<DAO extends BaseDAO<Datamodel>, Datamodel exten
                 let documents: Datamodel[];
 
                 if (req.query.searchObject) {
-                    let searchObject = JSON.parse(req.query.searchObject as string)
+                    let searchObject: unknown
+                    try {
+                        searchObject = JSON.parse(req.query.searchObject as string)
+                    } catch (_) {
+                        return next({ status: 400, message: 'Invalid searchObject JSON' })
+                    }
+                    if (!isPlainSearchObject(searchObject) || Object.keys(searchObject).length > 20) {
+                        return next({ status: 400, message: 'searchObject must be a flat object with scalar values' })
+                    }
                     documents = await this.dao.findByAttributes(searchObject)
                 } else {
                     documents = await this.dao.findAll()

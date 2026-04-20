@@ -12,7 +12,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -20,7 +20,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -30,19 +30,60 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CONFIG = void 0;
+const crypto_1 = require("crypto");
+function readEnv(name, fallback = '') {
+    const value = process.env[name];
+    return value === undefined || value === null ? fallback : value;
+}
+function readRuntimeSecret(name) {
+    const configuredValue = readEnv(name).trim();
+    if (configuredValue)
+        return configuredValue;
+    // Generate a per-process secret instead of falling back to a public default.
+    const generatedSecret = (0, crypto_1.randomBytes)(32).toString('hex');
+    console.warn(`[CONFIG] ${name} is not set. Using a runtime-generated secret; configure it explicitly for stable deployments.`);
+    return generatedSecret;
+}
+const tokenSecret = readRuntimeSecret('TOKEN_SECRET');
+const apiKey = readRuntimeSecret('CLM_API_KEY');
+const refreshTokenSecret = readEnv('REFRESH_TOKEN_SECRET').trim() || readRuntimeSecret('REFRESH_TOKEN_SECRET');
+const verificationTokenSecret = readEnv('VERIFICATION_TOKEN_SECRET').trim() || tokenSecret;
 exports.CONFIG = {
     ALLOWED_ISSUERS: JSON.parse(process.env.ALLOWED_ISSUERS || `[]`),
     ENV: process.env.ENV || 'dev',
-    PG_CONFIG: process.env.PG_CONFIG || 'localhost|5432|clm|root|12345',
+    PG_CONFIG: process.env.PG_CONFIG || 'localhost|5432|clm|root|',
     PG_SSL_MODE: process.env.PG_SSL_MODE || 'none',
     PG_SSL_CA_PATH: process.env.PG_SSL_CA_PATH || '',
     PG_POOL_PING_INTERVAL_MS: parseInt(process.env.PG_POOL_PING_INTERVAL_MS || '30000'),
-    MARIA_CONFIG: process.env.MARIA_CONFIG || 'localhost|3306|clm|root|12345',
+    MARIA_CONFIG: process.env.MARIA_CONFIG || 'localhost|3306|clm|root|',
     PORT: process.env.PORT || 3000,
     BASE_PATH: process.env.BASE_PATH || '/core',
-    CLM_ROOT_USER: process.env.CLM_ROOT_USER || 'admin@localhost.tld',
-    CLM_ROOT_PASSWORD: process.env.CLM_ROOT_PASSWORD || 'ABC123',
-    CLM_API_KEY: process.env.CLM_API_KEY || 'MGMT_SERVICE',
+    CLM_ROOT_USER: process.env.CLM_ROOT_USER || '',
+    CLM_ROOT_PASSWORD: process.env.CLM_ROOT_PASSWORD || '',
+    // Optional: bootstrap multiple admin users on startup (JSON array).
+    // Example:
+    //   CLM_ADMIN_USERS='[{"email":"a@x","password":"...","givenName":"A","familyName":"X","isSuperAdmin":true}]'
+    // Notes:
+    //   - Passwords should come from Secrets (not ConfigMaps).
+    //   - Backward compatible: CLM_ROOT_USER/CLM_ROOT_PASSWORD still work and are used as primary admin.
+    CLM_ADMIN_USERS: (() => {
+        const raw = process.env.CLM_ADMIN_USERS;
+        if (!raw)
+            return [];
+        try {
+            const parsed = JSON.parse(raw);
+            // Ensure we always return an array of objects.
+            if (!Array.isArray(parsed))
+                return [];
+            return parsed;
+        }
+        catch (err) {
+            // Keep startup resilient: invalid JSON should not crash the service.
+            console.warn('[CONFIG] Invalid CLM_ADMIN_USERS JSON; ignoring:', err);
+            return [];
+        }
+    })(),
+    CLM_API_KEY: apiKey,
     DEPLOY_URL: process.env.DEPLOY_URL || 'http://localhost/api',
     SMTP_FROM: process.env.SMTP_FROM || '',
     SMTP_HOST: process.env.SMTP_HOST || '',
@@ -51,14 +92,16 @@ exports.CONFIG = {
     SMTP_PASS: process.env.SMTP_PASS || '',
     VERBOSE: process.env.VERBOSE || 'false',
     DISABLE_ERR_RESPONSE: process.env.DISABLE_ERR_RESPONSE || false,
-    TOKEN_SECRET: process.env.TOKEN_SECRET || 'secret',
+    TOKEN_SECRET: tokenSecret,
+    REFRESH_TOKEN_SECRET: refreshTokenSecret,
+    VERIFICATION_TOKEN_SECRET: verificationTokenSecret,
     REDIS_CONFIG: process.env.REDIS_CONFIG || 'localhost|6379',
     OIDC_PROVIDERS: JSON.parse(process.env.OIDC_PROVIDERS || `[]`),
     ODIC_CLIENTS: JSON.parse(process.env.OIDC_CLIENTS || `[]`),
     ALLOW_TRUSTED_CLIENTS: (() => {
         const raw = process.env.ALLOW_TRUSTED_CLIENTS;
         if (raw === undefined || raw === null || raw === '')
-            return true;
+            return false;
         return /^(1|true|yes|on)$/i.test(raw.trim());
     })(),
     // OIDC claim mapping (allows different IAM attribute naming). Defaults follow common OpenID fields and provided IAM schema
@@ -88,6 +131,19 @@ exports.CONFIG = {
             return true;
         return /^(1|true|yes|on)$/i.test(raw.trim());
     })(),
+    OIDC_AUTO_CREATE_GROUPS: (() => {
+        const raw = process.env.OIDC_AUTO_CREATE_GROUPS;
+        if (raw === undefined || raw === null || raw === '')
+            return false;
+        return /^(1|true|yes|on)$/i.test(raw.trim());
+    })(),
+    OIDC_ALLOW_ADMIN_GROUP_SYNC: (() => {
+        const raw = process.env.OIDC_ALLOW_ADMIN_GROUP_SYNC;
+        if (raw === undefined || raw === null || raw === '')
+            return false;
+        return /^(1|true|yes|on)$/i.test(raw.trim());
+    })(),
+    OIDC_GROUP_SYNC_MAX_ITEMS: parseInt(process.env.OIDC_GROUP_SYNC_MAX_ITEMS || '50'),
     // Whether to validate/sync groups on IdP refresh-token exchange
     OIDC_SYNC_GROUPS_ON_REFRESH: (() => {
         const raw = process.env.OIDC_SYNC_GROUPS_ON_REFRESH;

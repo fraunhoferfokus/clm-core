@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,7 +27,6 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
 import { pathBDTOInstance } from "../models/Path/PathBDTO"
 import RoleDAO from "../models/Role/RoleDAO"
 import { RoleModel } from "../models/Role/RoleModel"
@@ -43,6 +42,44 @@ import { CONFIG } from "./config"
 export default async function configureDependencies(app: any, excludedPaths: string[]) {
     const rootUser = CONFIG.CLM_ROOT_USER
     const rootPassword = CONFIG.CLM_ROOT_PASSWORD
+
+    // Helm-friendly bootstrap slots (no JSON required):
+    //   CLM_ADMIN_USER_1 / CLM_ADMIN_PASSWORD_1 ... CLM_ADMIN_USER_10 / CLM_ADMIN_PASSWORD_10
+    // These are optional and can be used in addition to CLM_ADMIN_USERS (JSON).
+    const slotAdmins: any[] = []
+    for (let i = 1; i <= 10; i++) {
+        const username = (process.env[`CLM_ADMIN_USER_${i}`] || process.env[`CLM_ADMIN_USER${i}`] || '').toString().trim()
+        const password = (process.env[`CLM_ADMIN_PASSWORD_${i}`] || process.env[`CLM_ADMIN_PASSWORD${i}`] || '').toString()
+        if (!username || !password) continue
+        slotAdmins.push({ adminUsername: username, adminPassword: password })
+    }
+
+    // Support bootstrapping multiple admin users via CLM_ADMIN_USERS.
+    // We always include the legacy root user as primary admin for backward compatibility.
+    const rawAdminUsers: any[] = Array.isArray((CONFIG as any).CLM_ADMIN_USERS) ? (CONFIG as any).CLM_ADMIN_USERS : []
+    const bootstrapAdmins = [
+        {
+            email: rootUser,
+            password: rootPassword,
+            givenName: 'fokus',
+            familyName: 'fame',
+            isSuperAdmin: true,
+        },
+        ...slotAdmins,
+        ...rawAdminUsers,
+    ]
+
+    // Deduplicate admin users by email to avoid redundant DB queries/inserts.
+    const uniqueAdmins = new Map<string, any>()
+    for (const candidate of bootstrapAdmins) {
+        // Accept both formats:
+        //  - { email, password }
+        //  - { adminUsername, adminPassword } (Helm-friendly naming)
+        const email = (candidate?.email || candidate?.adminUsername || '').toString().trim()
+        if (!email) continue
+        if (!uniqueAdmins.has(email)) uniqueAdmins.set(email, candidate)
+    }
+
     let selfRole = (await RoleDAO.findByAttributes({ displayName: "Self" }))[0]
     if (!selfRole) selfRole = await RoleDAO.insert(new RoleModel({
         displayName: "Self",
@@ -116,16 +153,34 @@ export default async function configureDependencies(app: any, excludedPaths: str
 
     await pathBDTOInstance.registerRoutes(app, excludedPaths, CONFIG.CLM_API_KEY, rootUser)
 
-    let user = (await UserDAO.findByAttributes({ email: rootUser }))[0]
-    if (!user) UserDAO.insert(new UserModel({
-        'email': rootUser,
-        "isVerified": true,
-        "_id": rootUser,
-        "familyName": "fame",
-        "givenName": "fokus",
-        "isSuperAdmin": true,
-        "password": rootPassword
-    }))
+    // Create admin user(s) if they do not exist yet.
+    // NOTE: This is intentionally idempotent: it only inserts when missing.
+    for (const [, admin] of uniqueAdmins) {
+        const email = (admin?.email || admin.adminUsername || '').toString().trim()
+        if (!email) continue
+
+        // If no password is provided for additional admins, fall back to root password.
+        // This keeps deployments working even if only emails are provided.
+        const password = (admin?.password || admin?.adminPassword || rootPassword || '').toString()
+        if (!password) {
+            console.warn('[BOOTSTRAP] Skipping admin user without password:', email)
+            continue
+        }
+
+        const existingUser = (await UserDAO.findByAttributes({ email }))?.[0]
+        if (existingUser) continue
+
+        await UserDAO.insert(new UserModel({
+            email,
+            isVerified: true,
+            _id: email,
+            // Optional profile fields (safe defaults).
+            familyName: (admin?.familyName || 'admin').toString(),
+            givenName: (admin?.givenName || 'admin').toString(),
+            isSuperAdmin: admin?.isSuperAdmin === undefined ? true : Boolean(admin.isSuperAdmin),
+            password,
+        }))
+    }
 
     // Migrate OIDC Providers from env to DB if not already present
     try {

@@ -1,6 +1,36 @@
+/* -----------------------------------------------------------------------------
+ *  Copyright (c) 2023, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as published by
+ *  the Free Software Foundation, version 3.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *
+ *  No Patent Rights, Trademark Rights and/or other Intellectual Property
+ *  Rights other than the rights under this license are granted.
+ *  All other rights reserved.
+ *
+ *  For any other rights, a separate agreement needs to be closed.
+ *
+ *  For more information please contact:  
+ *  Fraunhofer FOKUS
+ *  Kaiserin-Augusta-Allee 31
+ *  10589 Berlin, Germany
+ *  https://www.fokus.fraunhofer.de/go/fame
+ *  famecontact@fokus.fraunhofer.de
+ * -----------------------------------------------------------------------------
+ */
 import axios from 'axios';
-import jwkToPem from 'jwk-to-pem';
+import { createPublicKey } from 'crypto';
 import { CONFIG } from '../config/config';
+import { findTrustedProviderByIssuer } from './OIDCIssuerTrust';
 
 // Provider config shape (partial)
 interface OIDCProviderConfig {
@@ -22,6 +52,23 @@ const KEY_TTL_MS = 6 * 60 * 60 * 1000; // 6h default cache
 const JWKS_REFRESH_FAILED_TTL_MS = 5 * 60 * 1000; // 5m if refresh fails
 
 const pemCache: Record<string, CachedKey> = {};
+
+function chunk64(input: string): string {
+  return input.match(/.{1,64}/g)?.join('\n') ?? input;
+}
+
+function jwkToPemNative(jwk: any): string {
+  // Prefer certificate chain if provided (commonly present for some issuers)
+  if (Array.isArray(jwk?.x5c) && jwk.x5c.length > 0 && typeof jwk.x5c[0] === 'string') {
+    const certDerBase64 = jwk.x5c[0].replace(/\s+/g, '');
+    return `-----BEGIN CERTIFICATE-----\n${chunk64(certDerBase64)}\n-----END CERTIFICATE-----\n`;
+  }
+
+  // Node supports importing JWK directly for RSA/EC/OKP public keys.
+  const keyObject = createPublicKey({ key: jwk, format: 'jwk' } as any);
+  const pem = keyObject.export({ format: 'pem', type: 'spki' });
+  return typeof pem === 'string' ? pem : pem.toString('utf8');
+}
 
 // Derive jwks_uri when not provided.
 // Strategy: If provider.jwks_uri exists -> use it.
@@ -91,7 +138,7 @@ async function fetchJwks(provider: OIDCProviderConfig) {
   for (const jwk of data.keys) {
     if (!jwk.kid) continue;
     try {
-      const pem = jwkToPem(jwk);
+      const pem = jwkToPemNative(jwk);
       pemCache[jwk.kid] = { pem, expiresAt: now + KEY_TTL_MS };
     } catch { /* skip invalid key */ }
   }
@@ -136,9 +183,7 @@ export async function verifyExternalToken(token: string) {
     providers = CONFIG.OIDC_PROVIDERS || []
   }
   
-  const provider = providers.find((p: any) =>
-    (p.issuer && p.issuer === payload.iss) || (p.authorization_endpoint && p.authorization_endpoint.includes(payload.iss))
-  );
+  const provider = findTrustedProviderByIssuer(providers as OIDCProviderConfig[], payload.iss);
   if (!provider) throw { status: 401, message: 'Issuer not trusted' };
 
   const pem = await getSigningKey(decodedHeader.kid, provider);

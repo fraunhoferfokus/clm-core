@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,13 +27,11 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
  import { CONFIG } from "../config/config";
 import AdapterInterface from "./AdapterInterface";
 import BaseDatamodel from "./BaseDatamodel";
 // import mariadb from 'mariadb';
 import mysql from 'mysql2'
-import { userInfo } from "os";
 
 const [host, port, database, user, password] = CONFIG.MARIA_CONFIG!.split('|')
 
@@ -54,6 +52,7 @@ let connection = mysql.createPool({
  * @public
  */
 export default class MariaAdapter<T extends BaseDatamodel> implements AdapterInterface<T>{
+    private readonly IMMUTABLE_KEYS = new Set(['_id', '_rev', 'createdAt', 'updatedAt'])
 
     tableName: string
     Class: { new(configObject: any): T }
@@ -102,8 +101,9 @@ export default class MariaAdapter<T extends BaseDatamodel> implements AdapterInt
 
     async init(): Promise<boolean> {
         try {
+            const tableName = mysql.escapeId(this.tableName)
             const statement = `
-                CREATE TABLE IF NOT EXISTS ${this.tableName} (
+                CREATE TABLE IF NOT EXISTS ${tableName} (
                 _id VARCHAR(200) NOT NULL,
                 doc LONGTEXT ,
                 CHECK (JSON_VALID(doc)),
@@ -118,35 +118,23 @@ export default class MariaAdapter<T extends BaseDatamodel> implements AdapterInt
         }
     }
 
-    private async query(statement: string) {
-        // let connection: mariadb.PoolConnection | undefined;
-
+    private async query(statement: string, params: any[] = []) {
         try {
+            const [results] = await connection.promise().query(statement, params)
+            if (!Array.isArray(results)) return results as any
 
-
-            const results = await new Promise((resolve, reject) => {
-                connection.query(statement, (err, results: any[], fields) => {
-                    if (err) return reject(err)
-                    // 
-                    let response: any;
-                    if (results?.length > 0) {
-                        response = results?.map(({ doc }) => ({ doc: JSON.parse(doc) }))
-                    } else {
-                        return resolve([])
-                    }
-                    return resolve(response)
-                })
-            })
-            return results as any;
+            return results.map((row: any) => {
+                if (!row || typeof row.doc !== 'string') return row
+                return { doc: JSON.parse(row.doc) }
+            }) as any
         } catch (err) {
-
             throw err
         }
     }
 
     async findAll(options?: any): Promise<T[]> {
         try {
-            const statement = `SELECT doc from ${this.tableName};`
+            const statement = `SELECT doc from ${mysql.escapeId(this.tableName)};`
             const response: any[] = await this.query(statement)
             return response.map(({ doc }) => new this.Class(doc))
         } catch (err) {
@@ -155,8 +143,8 @@ export default class MariaAdapter<T extends BaseDatamodel> implements AdapterInt
     }
     async findById(id: string, options?: any): Promise<T> {
         try {
-            const statement = `SELECT doc from ${this.tableName} where _id = '${id}';`
-            const response: any = await this.query(statement)
+            const statement = `SELECT doc from ${mysql.escapeId(this.tableName)} where _id = ?;`
+            const response: any = await this.query(statement, [id])
             let sqlItem = response[0]
             if (!sqlItem) throw { status: 404, message: `Not found doc with that id: ${id}` }
             return new this.Class(sqlItem.doc)
@@ -168,16 +156,17 @@ export default class MariaAdapter<T extends BaseDatamodel> implements AdapterInt
         try {
             const resource = await this.findById(id)
             for (const key in payload) {
-                if (key in resource) {
+                if (key in resource && !this.IMMUTABLE_KEYS.has(key) && typeof resource[key] !== 'function') {
                     resource[key] = payload[key];
                 }
             }
 
             await resource.beforeUpdate(payload)
-            const statement = `UPDATE ${this.tableName} 
-            SET doc = '${JSON.stringify(resource)}'
-            where _id = '${id}';`
-            await this.query(statement)
+            // Parameterized queries prevent user-controlled ids or payloads from breaking out of SQL literals.
+            const statement = `UPDATE ${mysql.escapeId(this.tableName)} 
+            SET doc = ?
+            where _id = ?;`
+            await this.query(statement, [JSON.stringify(resource), id])
             return resource
         } catch (err) {
             throw err
@@ -202,8 +191,8 @@ export default class MariaAdapter<T extends BaseDatamodel> implements AdapterInt
     async deleteById(id: string): Promise<boolean | void> {
         try {
             await this.findById(id)
-            const statement = `DELETE from ${this.tableName} where _id = '${id}';`
-            await this.query(statement)
+            const statement = `DELETE from ${mysql.escapeId(this.tableName)} where _id = ?;`
+            await this.query(statement, [id])
             return true
         } catch (err) {
             throw err
@@ -213,8 +202,8 @@ export default class MariaAdapter<T extends BaseDatamodel> implements AdapterInt
         try {
             const resource = new this.Class(payload)
             await resource.beforeInsert()
-            const statement = `INSERT INTO ${this.tableName} VALUES('${payload._id}','${JSON.stringify(resource)}');`
-            await this.query(statement)
+            const statement = `INSERT INTO ${mysql.escapeId(this.tableName)} (_id, doc) VALUES(?, ?);`
+            await this.query(statement, [payload._id, JSON.stringify(resource)])
             return resource
         } catch (err) {
             throw err

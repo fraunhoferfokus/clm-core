@@ -12,7 +12,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -20,7 +20,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -75,8 +75,9 @@ class UserMGMTController extends BaseModelController_1.default {
             const user = yield UserDAO_1.default.findById(req.params.id);
             if (user.isSuperAdmin && !(yield PasswordService_1.default.verifyPassword(req.body.oldPassword, user.password))) {
                 next({ message: "Need old password of super-admin", status: 400 });
+                return { proceed: false };
             }
-            return Promise.resolve({ proceed: true });
+            return { proceed: true };
         }), undefined);
     }
     deleteOneDocument() {
@@ -87,7 +88,7 @@ class UserMGMTController extends BaseModelController_1.default {
             try {
                 let targetedUser = yield UserDAO_1.default.findById(req.params.id);
                 if (targetedUser.isSuperAdmin) {
-                    next({ message: "Cannot delete super-admin", status: 400 });
+                    return next({ message: "Cannot delete super-admin", status: 400 });
                 }
                 return _super.deleteOneDocument.call(this)(req, res, next);
             }

@@ -12,7 +12,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -20,7 +20,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -58,6 +58,7 @@ let connection = mysql2_1.default.createPool({
  */
 class MariaAdapter {
     constructor(tableName, C, opt) {
+        this.IMMUTABLE_KEYS = new Set(['_id', '_rev', 'createdAt', 'updatedAt']);
         this.isInitialized = false;
         this.tableName = tableName;
         this.Class = C;
@@ -110,8 +111,9 @@ class MariaAdapter {
     init() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const tableName = mysql2_1.default.escapeId(this.tableName);
                 const statement = `
-                CREATE TABLE IF NOT EXISTS ${this.tableName} (
+                CREATE TABLE IF NOT EXISTS ${tableName} (
                 _id VARCHAR(200) NOT NULL,
                 doc LONGTEXT ,
                 CHECK (JSON_VALID(doc)),
@@ -127,26 +129,17 @@ class MariaAdapter {
             }
         });
     }
-    query(statement) {
+    query(statement, params = []) {
         return __awaiter(this, void 0, void 0, function* () {
-            // let connection: mariadb.PoolConnection | undefined;
             try {
-                const results = yield new Promise((resolve, reject) => {
-                    connection.query(statement, (err, results, fields) => {
-                        if (err)
-                            return reject(err);
-                        // 
-                        let response;
-                        if ((results === null || results === void 0 ? void 0 : results.length) > 0) {
-                            response = results === null || results === void 0 ? void 0 : results.map(({ doc }) => ({ doc: JSON.parse(doc) }));
-                        }
-                        else {
-                            return resolve([]);
-                        }
-                        return resolve(response);
-                    });
+                const [results] = yield connection.promise().query(statement, params);
+                if (!Array.isArray(results))
+                    return results;
+                return results.map((row) => {
+                    if (!row || typeof row.doc !== 'string')
+                        return row;
+                    return { doc: JSON.parse(row.doc) };
                 });
-                return results;
             }
             catch (err) {
                 throw err;
@@ -156,7 +149,7 @@ class MariaAdapter {
     findAll(options) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const statement = `SELECT doc from ${this.tableName};`;
+                const statement = `SELECT doc from ${mysql2_1.default.escapeId(this.tableName)};`;
                 const response = yield this.query(statement);
                 return response.map(({ doc }) => new this.Class(doc));
             }
@@ -168,8 +161,8 @@ class MariaAdapter {
     findById(id, options) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const statement = `SELECT doc from ${this.tableName} where _id = '${id}';`;
-                const response = yield this.query(statement);
+                const statement = `SELECT doc from ${mysql2_1.default.escapeId(this.tableName)} where _id = ?;`;
+                const response = yield this.query(statement, [id]);
                 let sqlItem = response[0];
                 if (!sqlItem)
                     throw { status: 404, message: `Not found doc with that id: ${id}` };
@@ -185,15 +178,16 @@ class MariaAdapter {
             try {
                 const resource = yield this.findById(id);
                 for (const key in payload) {
-                    if (key in resource) {
+                    if (key in resource && !this.IMMUTABLE_KEYS.has(key) && typeof resource[key] !== 'function') {
                         resource[key] = payload[key];
                     }
                 }
                 yield resource.beforeUpdate(payload);
-                const statement = `UPDATE ${this.tableName} 
-            SET doc = '${JSON.stringify(resource)}'
-            where _id = '${id}';`;
-                yield this.query(statement);
+                // Parameterized queries prevent user-controlled ids or payloads from breaking out of SQL literals.
+                const statement = `UPDATE ${mysql2_1.default.escapeId(this.tableName)} 
+            SET doc = ?
+            where _id = ?;`;
+                yield this.query(statement, [JSON.stringify(resource), id]);
                 return resource;
             }
             catch (err) {
@@ -226,8 +220,8 @@ class MariaAdapter {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 yield this.findById(id);
-                const statement = `DELETE from ${this.tableName} where _id = '${id}';`;
-                yield this.query(statement);
+                const statement = `DELETE from ${mysql2_1.default.escapeId(this.tableName)} where _id = ?;`;
+                yield this.query(statement, [id]);
                 return true;
             }
             catch (err) {
@@ -240,8 +234,8 @@ class MariaAdapter {
             try {
                 const resource = new this.Class(payload);
                 yield resource.beforeInsert();
-                const statement = `INSERT INTO ${this.tableName} VALUES('${payload._id}','${JSON.stringify(resource)}');`;
-                yield this.query(statement);
+                const statement = `INSERT INTO ${mysql2_1.default.escapeId(this.tableName)} (_id, doc) VALUES(?, ?);`;
+                yield this.query(statement, [payload._id, JSON.stringify(resource)]);
                 return resource;
             }
             catch (err) {

@@ -1,4 +1,33 @@
 "use strict";
+/* -----------------------------------------------------------------------------
+ *  Copyright (c) 2023, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as published by
+ *  the Free Software Foundation, version 3.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *
+ *  No Patent Rights, Trademark Rights and/or other Intellectual Property
+ *  Rights other than the rights under this license are granted.
+ *  All other rights reserved.
+ *
+ *  For any other rights, a separate agreement needs to be closed.
+ *
+ *  For more information please contact:  
+ *  Fraunhofer FOKUS
+ *  Kaiserin-Augusta-Allee 31
+ *  10589 Berlin, Germany
+ *  https://www.fokus.fraunhofer.de/go/fame
+ *  famecontact@fokus.fraunhofer.de
+ * -----------------------------------------------------------------------------
+ */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -22,12 +51,10 @@ const CoreLib_1 = require("../lib/CoreLib");
 const crypto_1 = require("crypto");
 const OIDCStateDAO_1 = __importDefault(require("../models/OIDCState/OIDCStateDAO"));
 const OIDCStateModel_1 = __importDefault(require("../models/OIDCState/OIDCStateModel"));
-const GroupDAO_1 = __importDefault(require("../models/Group/GroupDAO"));
-const GroupModel_1 = __importDefault(require("../models/Group/GroupModel"));
-const RoleDAO_1 = __importDefault(require("../models/Role/RoleDAO"));
-const RelationBDTO_1 = __importDefault(require("../models/Relation/RelationBDTO"));
 const OIDCClientDAO_1 = __importDefault(require("../models/OIDCClient/OIDCClientDAO"));
 const OIDCProviderDAO_1 = __importDefault(require("../models/OIDCProvider/OIDCProviderDAO"));
+const jwksService_1 = require("../services/jwksService");
+const OIDCGroupSyncService_1 = require("../services/OIDCGroupSyncService");
 // get executing diretory of node-process
 const OIDC_PROVIDER = config_1.CONFIG.OIDC_PROVIDERS;
 const firstProvider = OIDC_PROVIDER[0];
@@ -125,7 +152,7 @@ class OIDController {
                     return next({ status: 400, message: 'post_logout_redirect_uri, client_id required' });
                 const clients = yield getOIDCClients();
                 const oidc_client = clients.find((oidc_client) => oidc_client.client_id === odic_client_client_id);
-                if (!oidc_client || !oidc_client.valid_redirect_uris.includes(oidc_client_post_logout_redirect_uri))
+                if (!oidc_client || !this.isAllowedRedirectUri(oidc_client, oidc_client_post_logout_redirect_uri))
                     return next({ status: 400, message: 'Invalid post_logout_redirect_uri' });
                 let broker_post_logout_uri = config_1.CONFIG.DEPLOY_URL + '/core/sso/oidc/broker/logout/redirect';
                 const url = new URL(end_session_endpoint);
@@ -135,7 +162,7 @@ class OIDController {
                 url.searchParams.append('scope', 'openid');
                 url.searchParams.append('client_id', client_id);
                 url.searchParams.append('post_logout_redirect_uri', broker_post_logout_uri);
-                yield OIDCStateDAO_1.default.insert(new OIDCStateModel_1.default({ state, postLogoutRedirectUri: oidc_client_post_logout_redirect_uri }));
+                yield OIDCStateDAO_1.default.insert(new OIDCStateModel_1.default({ state, clientId: oidc_client.client_id, postLogoutRedirectUri: this.normalizeRedirectUri(oidc_client_post_logout_redirect_uri) }));
                 return res.redirect(url.toString());
             }
             catch (err) {
@@ -149,6 +176,10 @@ class OIDController {
                 if (!oidcClientState || !oidcClientState.postLogoutRedirectUri)
                     return next({ status: 400, message: 'Invalid state' });
                 const { postLogoutRedirectUri: post_logout_redirect_uri } = oidcClientState;
+                const clients = yield getOIDCClients();
+                const oidcClient = clients.find((client) => client.client_id === oidcClientState.clientId);
+                if (!oidcClient || !this.isAllowedRedirectUri(oidcClient, post_logout_redirect_uri))
+                    return next({ status: 400, message: 'Invalid post_logout_redirect_uri' });
                 return res.redirect(post_logout_redirect_uri);
             }
             catch (err) {
@@ -166,10 +197,10 @@ class OIDController {
                     const clients = yield getOIDCClients();
                     let oidc_client = clients.find((oidc_client) => oidc_client.client_id === oidc_client_id);
                     if (oidc_client) {
-                        let valid_redirect_uri = oidc_client.valid_redirect_uris.find((valid_redirect_uri) => valid_redirect_uri === oidc_redirect_uri);
+                        let valid_redirect_uri = this.isAllowedRedirectUri(oidc_client, oidc_redirect_uri);
                         let state = (0, crypto_1.randomUUID)();
                         try {
-                            yield OIDCStateDAO_1.default.insert(new OIDCStateModel_1.default({ state, redirectUri: oidc_redirect_uri }));
+                            yield OIDCStateDAO_1.default.insert(new OIDCStateModel_1.default({ state, clientId: oidc_client.client_id, redirectUri: this.normalizeRedirectUri(oidc_redirect_uri) }));
                         }
                         catch (e) {
                             return next(e);
@@ -215,7 +246,14 @@ class OIDController {
                             message: 'Invalid state'
                         });
                     const { redirectUri: redirect_uri } = stored;
-                    return res.redirect(`${redirect_uri}?code=${code}`);
+                    const clients = yield getOIDCClients();
+                    const oidcClient = clients.find((client) => client.client_id === stored.clientId);
+                    if (!oidcClient || !this.isAllowedRedirectUri(oidcClient, redirect_uri)) {
+                        return res.status(400).json({ message: 'Invalid redirect_uri' });
+                    }
+                    const redirectUrl = new URL(redirect_uri);
+                    redirectUrl.searchParams.set('code', `${code || ''}`);
+                    return res.redirect(redirectUrl.toString());
                 }
                 // let full_logout_endpoint = `${lougout_endpoint}?response_type=code&scope=openid&client_id=${process.env.KEYCLOAK_CLIENT_ID}&id_token_hint=${id_token_hint}&post_logout_redirect_uri=${post_logout_redirect_uri}`
                 let { access_token: idp_access_token, refresh_token: idp_refresh_token, expires_in: idp_access_token_expires_in, refresh_expires_in: idp_refresh_token_expires_in, user } = yield this.codeAuthFlow(code);
@@ -224,8 +262,12 @@ class OIDController {
                 let decodedR = jsonwebtoken_1.default.decode(refreshToken);
                 let accessTokenExpiresIn = new Date(1000 * decodedA.exp).toJSON();
                 let refreshTokenExpiresIn = new Date(1000 * decodedR.exp).toJSON();
-                return res.redirect(`${config_1.CONFIG.DEPLOY_URL}/core/sso/oidc/success?id=${user._id}&access_token_expires_in=${accessTokenExpiresIn}&refresh_token_expires_in=${refreshTokenExpiresIn}&idp_access_token=${idp_access_token}&idp_refresh_token=${idp_refresh_token}&idp_access_token_expires_in=${idp_access_token_expires_in}&idp_refresh_token_expires_in=${idp_refresh_token_expires_in}
-                `);
+                return this.renderSuccessPage(res, user, {
+                    idpAccessToken: idp_access_token,
+                    idpRefreshToken: idp_refresh_token,
+                    idpAccessTokenExpiresIn: idp_access_token_expires_in,
+                    idpRefreshTokenExpiresIn: idp_refresh_token_expires_in
+                });
             }
             catch (err) {
                 return res.status(err.status || 500).json({
@@ -251,8 +293,8 @@ class OIDController {
                 });
                 const { access_token, refresh_token, expires_in, refresh_expires_in, id_token } = keycloak_response.data;
                 // Prefer ID Token claims; fall back to Access Token if ID Token not returned
-                const decodedId = id_token ? jsonwebtoken_1.default.decode(id_token) : undefined;
-                const decodedAcc = jsonwebtoken_1.default.decode(access_token);
+                const decodedId = id_token ? yield (0, jwksService_1.verifyExternalToken)(id_token).catch(() => undefined) : undefined;
+                const decodedAcc = yield (0, jwksService_1.verifyExternalToken)(access_token).catch(() => undefined);
                 const claims = decodedId || decodedAcc || {};
                 // Resolve claim keys from CONFIG with sensible defaults
                 const claimKey = {
@@ -377,7 +419,7 @@ class OIDController {
                 }
                 // Synchronize groups/roles from token claim (BwSSOGroupVLBw or configured key)
                 try {
-                    yield this.syncGroupsAndMembershipsFromClaims(user._id, tokenGroupsRaw);
+                    yield (0, OIDCGroupSyncService_1.syncGroupsAndMembershipsFromClaims)(user._id, tokenGroupsRaw);
                 }
                 catch (e) {
                     // Non-fatal during login; log on server if VERBOSE
@@ -404,7 +446,7 @@ class OIDController {
                     return res.status(400).json({
                         message: 'Invalid client_id'
                     });
-                if (!oidc_client.valid_redirect_uris.includes(redirect_uri))
+                if (!this.isAllowedRedirectUri(oidc_client, redirect_uri))
                     return res.status(400).json({
                         message: 'Invalid redirect_uri'
                     });
@@ -426,38 +468,7 @@ class OIDController {
             }
         });
         this.ssoSuccess = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
-            try {
-                const { id, idp_access_token, idp_refresh_token, idp_access_token_expires_in, idp_refresh_token_expires_in } = req.query;
-                const user = yield UserDAO_1.default.findById(id);
-                // return res.json({
-                //     access_token,
-                //     user,
-                //     idp_access_token,
-                //     idp_refresh_token
-                // })
-                let gateway_url = config_1.CONFIG.DEPLOY_URL.includes('localhost') ? 'http://gateway/api' : config_1.CONFIG.DEPLOY_URL;
-                const course_structure_url = `${gateway_url}/learningObjects/users/${user._id}/courses`;
-                const course_structure = (yield axios_1.default.get(course_structure_url, {
-                    headers: {
-                        Authorization: `Bearer ${config_1.CONFIG.CLM_API_KEY}`,
-                        'x-access-token': idp_access_token
-                    }
-                })).data;
-                return res.render('success', {
-                    access_token: idp_access_token,
-                    access_token_expires_in: idp_access_token_expires_in,
-                    refresh_token: idp_refresh_token,
-                    refresh_token_expires_in: idp_refresh_token_expires_in,
-                    course_structure,
-                    user,
-                    end_session_endpoint: end_session_endpoint + '?post_logout_redirect_uri=' + config_1.CONFIG.DEPLOY_URL + '/core/sso/oidc' + '&client_id=' + client_id
-                });
-            }
-            catch (err) {
-                return res.status(err.status || 500).json({
-                    message: err.message || err
-                });
-            }
+            return res.status(410).json({ message: 'Deprecated success route. Tokens are no longer accepted in query parameters.' });
         });
         this.router = express_1.default.Router();
         this.init();
@@ -476,142 +487,47 @@ class OIDController {
                 console.error('Error loading OIDC clients on init:', err);
         });
     }
-    // --------------- Helper methods for OIDC group/role processing ---------------
-    normalizeGroupToken(raw) {
-        // Remove extra spaces around delimiters and trim
-        return (raw || '').replace(/\s*_\s*/g, config_1.CONFIG.OIDC_GROUP_ROLE_DELIMITER).replace(/\s+/g, ' ').trim();
-    }
-    parseGroupEntry(entry) {
-        const cleaned = this.normalizeGroupToken(entry);
-        if (!cleaned)
-            return { base: '', suffix: null };
-        const delim = config_1.CONFIG.OIDC_GROUP_ROLE_DELIMITER;
-        const lastIdx = cleaned.lastIndexOf(delim);
-        if (lastIdx < 0) {
-            return { base: cleaned, suffix: null };
+    normalizeRedirectUri(uri) {
+        if (!uri || typeof uri !== 'string')
+            return undefined;
+        try {
+            const parsed = new URL(uri);
+            if (!['http:', 'https:'].includes(parsed.protocol))
+                return undefined;
+            parsed.hash = '';
+            return parsed.toString();
         }
-        const base = cleaned.substring(0, lastIdx);
-        const rawSuffix = cleaned.substring(lastIdx + delim.length);
-        return { base: base || cleaned, suffix: rawSuffix || null };
+        catch (_) {
+            return undefined;
+        }
     }
-    suffixToInternalRole(suffix) {
-        const s = (suffix || '').trim().toLowerCase();
-        const sufLearner = config_1.CONFIG.OIDC_GROUP_SUFFIX_LEARNER.toLowerCase();
-        const sufInstructor = config_1.CONFIG.OIDC_GROUP_SUFFIX_INSTRUCTOR.toLowerCase();
-        const sufAdmin = config_1.CONFIG.OIDC_GROUP_SUFFIX_ADMIN.toLowerCase();
-        if (s === sufInstructor)
-            return config_1.CONFIG.OIDC_ROLEMAP_INSTRUCTOR;
-        if (s === sufAdmin)
-            return config_1.CONFIG.OIDC_ROLEMAP_ADMIN;
-        if (s === sufLearner)
-            return config_1.CONFIG.OIDC_ROLEMAP_LEARNER;
-        // Default when unknown suffix: Learner
-        return config_1.CONFIG.OIDC_ROLEMAP_LEARNER;
+    isAllowedRedirectUri(client, candidate) {
+        const normalizedCandidate = this.normalizeRedirectUri(candidate);
+        if (!normalizedCandidate || !Array.isArray(client === null || client === void 0 ? void 0 : client.valid_redirect_uris))
+            return false;
+        return client.valid_redirect_uris
+            .map((value) => this.normalizeRedirectUri(value))
+            .includes(normalizedCandidate);
     }
-    ensureGroupWithRole(displayName, roleName) {
+    renderSuccessPage(res, user, tokens) {
         return __awaiter(this, void 0, void 0, function* () {
-            // Find role
-            const role = yield RoleDAO_1.default.findByRoleName(roleName);
-            // Try to find group with displayName and attached target role
-            const [groups, relations] = yield Promise.all([
-                GroupDAO_1.default.findByAttributes({ displayName }),
-                RelationBDTO_1.default.findAll()
-            ]);
-            for (const g of groups) {
-                const rel = relations.find(r => r.fromType === 'group' && r.fromId === g._id && r.toType === 'role');
-                if (rel && rel.toId === role._id)
-                    return g;
-            }
-            // Create when missing
-            const created = yield GroupDAO_1.default.insert(new GroupModel_1.default({ displayName }), { role: role._id });
-            return created;
-        });
-    }
-    ensureHierarchy(groupsByRole) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // Create hierarchy Admin -> Instructor (if exists) -> Learner
-            const admin = groupsByRole['OrgAdmin'];
-            const instructor = groupsByRole['Instructor'];
-            const learner = groupsByRole['Learner'];
-            // Admin -> Instructor or Learner
-            if (admin && instructor) {
-                try {
-                    yield RelationBDTO_1.default.addGroupToGroup(admin._id, instructor._id);
+            const gateway_url = config_1.CONFIG.DEPLOY_URL.includes('localhost') ? 'http://gateway/api' : config_1.CONFIG.DEPLOY_URL;
+            const course_structure_url = `${gateway_url}/learningObjects/users/${user._id}/courses`;
+            const course_structure = (yield axios_1.default.get(course_structure_url, {
+                headers: {
+                    Authorization: `Bearer ${config_1.CONFIG.CLM_API_KEY}`,
+                    'x-access-token': tokens.idpAccessToken
                 }
-                catch (_) { /* ignore if exists */ }
-            }
-            else if (admin && learner) {
-                try {
-                    yield RelationBDTO_1.default.addGroupToGroup(admin._id, learner._id);
-                }
-                catch (_) { /* ignore if exists */ }
-            }
-            // Instructor -> Learner
-            if (instructor && learner) {
-                try {
-                    yield RelationBDTO_1.default.addGroupToGroup(instructor._id, learner._id);
-                }
-                catch (_) { /* ignore if exists */ }
-            }
-        });
-    }
-    syncGroupsAndMembershipsFromClaims(userId, groupsRaw) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // Parse comma-separated groups; keep raw token entry for displayName, only normalize for parsing role/base
-            const items = (groupsRaw || '')
-                .split(',')
-                .map(s => s.trim())
-                .filter(Boolean);
-            // Base -> map of role -> raw displayName (exactly as in token)
-            const baseToRoleName = new Map();
-            for (const raw of items) {
-                const { base, suffix } = this.parseGroupEntry(raw);
-                if (!base)
-                    continue;
-                const internalRole = this.suffixToInternalRole(suffix);
-                if (!baseToRoleName.has(base))
-                    baseToRoleName.set(base, new Map());
-                // Always use the raw token string as displayName, unchanged
-                baseToRoleName.get(base).set(internalRole, raw);
-            }
-            // Ensure groups for each base/role with exact token displayName, build desiredGroupIds
-            const desiredGroupIds = [];
-            for (const [base, roleNameMap] of baseToRoleName.entries()) {
-                const groupsByRole = {};
-                const roles = roleNameMap.size > 0
-                    ? Array.from(roleNameMap.keys())
-                    : ['Learner'];
-                for (const r of roles) {
-                    const displayName = roleNameMap.get(r) || base; // fallback to base if somehow missing
-                    const g = yield this.ensureGroupWithRole(displayName, r);
-                    groupsByRole[r] = g;
-                    desiredGroupIds.push(g._id);
-                }
-                // Build hierarchy based on role semantics for this base (Admin -> Instructor -> Learner)
-                yield this.ensureHierarchy(groupsByRole);
-            }
-            // Synchronize user membership: enroll new, unenroll removed
-            const current = yield RelationBDTO_1.default.getUsersGroups(userId);
-            const currentIds = new Set(current.map(g => g._id));
-            const desiredIds = new Set(desiredGroupIds);
-            // Enroll in new groups
-            for (const gid of desiredIds) {
-                if (!currentIds.has(gid)) {
-                    try {
-                        yield RelationBDTO_1.default.addUserToGroup(userId, gid);
-                    }
-                    catch (_) { /* ignore if already enrolled */ }
-                }
-            }
-            // Unenroll from groups that are no longer present in token
-            for (const gid of currentIds) {
-                if (!desiredIds.has(gid)) {
-                    try {
-                        yield RelationBDTO_1.default.removeUserFromGroup(userId, gid);
-                    }
-                    catch (_) { /* ignore if not enrolled */ }
-                }
-            }
+            })).data;
+            return res.render('success', {
+                access_token: tokens.idpAccessToken,
+                access_token_expires_in: tokens.idpAccessTokenExpiresIn,
+                refresh_token: tokens.idpRefreshToken,
+                refresh_token_expires_in: tokens.idpRefreshTokenExpiresIn,
+                course_structure_json: JSON.stringify(course_structure, null, 2),
+                user,
+                end_session_endpoint: end_session_endpoint + '?post_logout_redirect_uri=' + encodeURIComponent(config_1.CONFIG.DEPLOY_URL + '/core/sso/oidc') + '&client_id=' + encodeURIComponent(client_id)
+            });
         });
     }
 }

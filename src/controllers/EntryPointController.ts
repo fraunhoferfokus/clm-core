@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,26 +27,23 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
 import express from 'express'
-import { AuthGuard, jwtServiceInstance, pathBDTOInstance, relationBDTOInstance } from '../lib/CoreLib'
-import SwaggerDefinition from '../services/SwaggerDefinition'
+import jwt from 'jsonwebtoken'
+import swaggerJsdoc from 'swagger-jsdoc'
+import { CONFIG } from '../config/config'
+import { CrudAccess } from '../handlers/AuthGuard'
+import { AuthGuard, jwtServiceInstance, pathBDTOInstance } from '../lib/CoreLib'
+import UserDAO from '../models/User/UserDAO'
 import controller from './AuthController'
+import MgmtRoleController from './MgmtRoleController'
 import MgtmAPITokenController from './MgtmAPITokenController'
 import MgtmGroupController from './MgtmGroupController'
 import MgtmUserController from './MgtmUserController'
-import UserController from './UserController'
-import swaggerJsdoc from 'swagger-jsdoc'
-import UserDAO from '../models/User/UserDAO'
-import jwt from 'jsonwebtoken'
-import { CONFIG } from '../config/config'
 import OIDController from './OIDCController'
-import MgmtRoleController from './MgmtRoleController'
-import { extModelFetchInstance } from '../api/ExtModelFetcher'
-import ResourceController from './ResourceController'
-import { CrudAccess } from '../handlers/AuthGuard'
 import OIDCClientController from './OIDCClientController'
 import OIDCProviderController from './OIDCProviderController'
+import ResourceController from './ResourceController'
+import UserController from './UserController'
 /**
  * @openapi
  * components:
@@ -151,10 +148,10 @@ EntryPointController.use('/resources', ResourceController.router)
 // CONFIG.DISABLE_LEGACCY_FINDOO = true
 
 EntryPointController.get('/mgmt/users/:id/token',
-    // Neue Logik: Wenn Trusted Clients erlaubt sind -> Permission Checker überspringen
-    CONFIG.ALLOW_TRUSTED_CLIENTS ?
-        ((req, res, next) => next()) as express.Handler :
-        AuthGuard.permissionChecker(
+    // Keep the legacy trusted-client bypass available, but make it opt-in via secure default config.
+    CONFIG.ALLOW_TRUSTED_CLIENTS
+        ? ((req, res, next) => next()) as express.Handler
+        : AuthGuard.permissionChecker(
             'user',
             [{ in: 'path', name: 'id' }],
             CrudAccess.ReadWriteDeleteUpdate

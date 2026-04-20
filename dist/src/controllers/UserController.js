@@ -12,7 +12,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -20,7 +20,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -51,7 +51,8 @@ const emailService_1 = __importDefault(require("../services/emailService"));
 const RelationBDTO_1 = __importDefault(require("../models/Relation/RelationBDTO"));
 const config_1 = require("../config/config");
 const Cryptr = require('cryptr');
-const cryptr = new Cryptr('secret');
+// Verification links must use a configured secret instead of a repository-wide constant.
+const cryptr = new Cryptr(config_1.CONFIG.VERIFICATION_TOKEN_SECRET);
 const basePath = config_1.CONFIG.BASE_PATH || '/core';
 const baseLocation = `${basePath}/users`;
 class UserController extends BaseModelController_1.default {
@@ -66,7 +67,11 @@ class UserController extends BaseModelController_1.default {
             }
         };
         this.usersPermissions = () => (req, res, next) => __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             try {
+                if (req.params.id && req.params.id !== ((_a = req.requestingUser) === null || _a === void 0 ? void 0 : _a._id) && !((_b = req.requestingUser) === null || _b === void 0 ? void 0 : _b.isSuperAdmin)) {
+                    return next({ status: 403, message: 'Cannot access another user permissions' });
+                }
                 const userPermissions = yield RelationBDTO_1.default.getUsersPermissions(req.requestingUser._id);
                 return res.json(userPermissions);
             }
@@ -77,7 +82,11 @@ class UserController extends BaseModelController_1.default {
     }
     getUsersGroups() {
         return (req, res, next) => {
+            var _a, _b;
             try {
+                if (req.params.id && req.params.id !== ((_a = req.requestingUser) === null || _a === void 0 ? void 0 : _a._id) && !((_b = req.requestingUser) === null || _b === void 0 ? void 0 : _b.isSuperAdmin)) {
+                    return next({ status: 403, message: 'Cannot access another user groups' });
+                }
                 const user = req.requestingUser;
                 return RelationBDTO_1.default.getUsersGroups(user === null || user === void 0 ? void 0 : user._id).then((groups) => res.json(groups));
             }
@@ -88,7 +97,11 @@ class UserController extends BaseModelController_1.default {
     }
     getUsersRoles() {
         return (req, res, next) => {
+            var _a, _b;
             try {
+                if (req.params.id && req.params.id !== ((_a = req.requestingUser) === null || _a === void 0 ? void 0 : _a._id) && !((_b = req.requestingUser) === null || _b === void 0 ? void 0 : _b.isSuperAdmin)) {
+                    return next({ status: 403, message: 'Cannot access another user roles' });
+                }
                 const user = req.requestingUser;
                 return RelationBDTO_1.default.getUsersGroups(user === null || user === void 0 ? void 0 : user._id).then((groups) => {
                     let adminGroup = [];

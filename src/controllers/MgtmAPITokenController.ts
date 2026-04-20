@@ -11,7 +11,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -19,7 +19,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -27,7 +27,6 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-
  
 import { Handler } from 'express';
 import BaseModelController from './BaseModelController'
@@ -44,7 +43,8 @@ import { CONFIG } from '../config/config';
 
 
 const Cryptr = require('cryptr');
-const cryptr = new Cryptr('secret');
+// Consumer confirmation links must use a configured secret instead of a repository-wide constant.
+const cryptr = new Cryptr(CONFIG.VERIFICATION_TOKEN_SECRET);
 const basePath = CONFIG.BASE_PATH || '/core'
 const baseLocation = `${basePath}/mgmt/consumers`
 
@@ -55,27 +55,24 @@ class MgtmTokenController extends BaseModelController<typeof ConsumerDAO, Consum
         return super.createDocument(undefined, (doc, payload) => {
             return async (req, res, next) => {
                 const promises: any[] = []
+                
                 // for (const path of payload.paths) {
                 //     promises.push(RelationBackendDTO.createRelationship(doc!._id, 'api_token', 'HAS', path.route, 'path', { scope: path.scope }))
                 // }
-                return Promise.all(promises).then((resp) => {
-                    return transporter.sendMail(
-                        {
-                            from: '"Verfication" aws_akademie@fokus.fraunhofer.de',
-                            to: req.body.userId,
-                            text: "Confirm your DEV-Token",
-                            subject: 'Please verify your DEV-Token',
-                            html: "<b>Verify DEV-Token!</b>" +
-                                `
-                                Your token when verified is: <b>${doc!._id}</b>
-                                <br>
-                                <a href="${CONFIG.DEPLOY_URL || "http://localhost"}/mgmt/consumers/${cryptr.encrypt(doc!._id)}/confirm" >Verfiy DEV-Token!</a>`
-                        }
-                    ).then(() => res.json({ ...doc, paths: payload.paths })).catch((err) => {
-                        console.error({ err })
-                        next(err)
-                    })
-
+                // Ohne E-Mail Versand: Setze den Token-Status gemäß Payload (Default: true) und antworte mit dem erzeugten Dokument
+                return Promise.all(promises).then(() => {
+                    const desiredActive = typeof payload.active === 'boolean' ? payload.active : true;
+                    // Persistiere aktiven Status und Pfade im Backend
+                    return ConsumerDAO.updateById(doc!._id!, ({ active: desiredActive, paths: payload.paths } as any))
+                        .then((updated) => {
+                            // Antworte mit dem aktualisierten Dokument inklusive gesetzter Pfade
+                            return res.json({ ...updated });
+                        })
+                        .catch((err) => {
+                            // Fehlerbehandlung, falls das Aktualisieren fehlschlägt
+                            console.error({ err })
+                            next(err)
+                        })
                 })
             }
         })

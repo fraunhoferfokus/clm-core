@@ -12,7 +12,7 @@
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
  *
  *  No Patent Rights, Trademark Rights and/or other Intellectual Property
  *  Rights other than the rights under this license are granted.
@@ -20,7 +20,7 @@
  *
  *  For any other rights, a separate agreement needs to be closed.
  *
- *  For more information please contact:
+ *  For more information please contact:  
  *  Fraunhofer FOKUS
  *  Kaiserin-Augusta-Allee 31
  *  10589 Berlin, Germany
@@ -45,6 +45,11 @@ exports.BaseModelController = void 0;
 const express_1 = __importDefault(require("express"));
 const ExpressValidationMW_1 = require("../handlers/ExpressValidationMW");
 const express_validator_1 = require("express-validator");
+function isPlainSearchObject(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        return false;
+    return Object.values(value).every((entry) => ['string', 'number', 'boolean'].includes(typeof entry) || entry === null);
+}
 /**
  * A controller which offers CRUD opeartions as REST-Interface on a certain resource.
  * Expects as types `DAO` which has to be of type {@link BaseDAO}, `Datamodel` of type {@link BaseDatamodel} and `FDTO` of type {@link BaseFrontendDTO}
@@ -111,7 +116,16 @@ class BaseModelController {
             try {
                 let documents;
                 if (req.query.searchObject) {
-                    let searchObject = JSON.parse(req.query.searchObject);
+                    let searchObject;
+                    try {
+                        searchObject = JSON.parse(req.query.searchObject);
+                    }
+                    catch (_) {
+                        return next({ status: 400, message: 'Invalid searchObject JSON' });
+                    }
+                    if (!isPlainSearchObject(searchObject) || Object.keys(searchObject).length > 20) {
+                        return next({ status: 400, message: 'searchObject must be a flat object with scalar values' });
+                    }
                     documents = yield this.dao.findByAttributes(searchObject);
                 }
                 else {

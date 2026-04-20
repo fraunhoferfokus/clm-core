@@ -1,3 +1,32 @@
+/* -----------------------------------------------------------------------------
+ *  Copyright (c) 2023, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as published by
+ *  the Free Software Foundation, version 3.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *
+ *  No Patent Rights, Trademark Rights and/or other Intellectual Property
+ *  Rights other than the rights under this license are granted.
+ *  All other rights reserved.
+ *
+ *  For any other rights, a separate agreement needs to be closed.
+ *
+ *  For more information please contact:  
+ *  Fraunhofer FOKUS
+ *  Kaiserin-Augusta-Allee 31
+ *  10589 Berlin, Germany
+ *  https://www.fokus.fraunhofer.de/go/fame
+ *  famecontact@fokus.fraunhofer.de
+ * -----------------------------------------------------------------------------
+ */
 import express from 'express';
 import { RessourcePermissions } from '../models/Role/RoleModel';
 export declare enum CrudAccess {
@@ -84,17 +113,5 @@ export declare class AuthGuard {
      */
     static requireAdminUser: () => express.Handler[];
     private static sameUserAsId;
-    /** Normalize a group token by trimming and unifying delimiter spacing */
-    private static normalizeGroupToken;
-    /** Parse a single group entry into base displayName and optional suffix role token */
-    private static parseGroupEntry;
-    /** Map suffix token to internal role display name */
-    private static suffixToInternalRole;
-    /** Ensure a group exists with the given role connected; create if missing */
-    private static ensureGroupWithRole;
-    /** Ensure the hierarchy Admin -> Instructor -> Learner exists for a base group */
-    private static ensureHierarchy;
-    /** Parse the claim and synchronize user's memberships */
-    private static syncGroupsAndMembershipsFromClaims;
 }
 //# sourceMappingURL=AuthGuard.d.ts.map

@@ -1,7 +1,37 @@
+/* -----------------------------------------------------------------------------
+ *  Copyright (c) 2023, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as published by
+ *  the Free Software Foundation, version 3.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *
+ *  No Patent Rights, Trademark Rights and/or other Intellectual Property
+ *  Rights other than the rights under this license are granted.
+ *  All other rights reserved.
+ *
+ *  For any other rights, a separate agreement needs to be closed.
+ *
+ *  For more information please contact:  
+ *  Fraunhofer FOKUS
+ *  Kaiserin-Augusta-Allee 31
+ *  10589 Berlin, Germany
+ *  https://www.fokus.fraunhofer.de/go/fame
+ *  famecontact@fokus.fraunhofer.de
+ * -----------------------------------------------------------------------------
+ */
 import BaseDatamodel, { iBaseDatamodel } from "../BaseDatamodel";
 
 export interface iOIDCStateModel extends iBaseDatamodel {
   state: string;
+  clientId?: string;
   redirectUri?: string;
   postLogoutRedirectUri?: string;
   expiresAt: Date; // when this state entry becomes invalid
@@ -10,6 +40,7 @@ export interface iOIDCStateModel extends iBaseDatamodel {
 
 export class OIDCStateModel extends BaseDatamodel implements iOIDCStateModel {
   state: string;
+  clientId?: string;
   redirectUri?: string;
   postLogoutRedirectUri?: string;
   expiresAt: Date;
@@ -18,6 +49,7 @@ export class OIDCStateModel extends BaseDatamodel implements iOIDCStateModel {
   constructor(payload: Partial<iOIDCStateModel> & { state: string }) {
     super(payload);
     this.state = payload.state;
+    this.clientId = payload.clientId;
     this.redirectUri = payload.redirectUri;
     this.postLogoutRedirectUri = payload.postLogoutRedirectUri;
     this.expiresAt = payload.expiresAt ? new Date(payload.expiresAt) : new Date(Date.now() + 1000 * 60 * 10); // default 10min

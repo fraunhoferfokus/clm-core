@@ -1,4 +1,33 @@
 "use strict";
+/* -----------------------------------------------------------------------------
+ *  Copyright (c) 2023, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as published by
+ *  the Free Software Foundation, version 3.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.  
+ *
+ *  No Patent Rights, Trademark Rights and/or other Intellectual Property
+ *  Rights other than the rights under this license are granted.
+ *  All other rights reserved.
+ *
+ *  For any other rights, a separate agreement needs to be closed.
+ *
+ *  For more information please contact:  
+ *  Fraunhofer FOKUS
+ *  Kaiserin-Augusta-Allee 31
+ *  10589 Berlin, Germany
+ *  https://www.fokus.fraunhofer.de/go/fame
+ *  famecontact@fokus.fraunhofer.de
+ * -----------------------------------------------------------------------------
+ */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -37,11 +66,27 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports._clearJwksCache = exports.verifyExternalToken = exports.getSigningKey = void 0;
 const axios_1 = __importDefault(require("axios"));
-const jwk_to_pem_1 = __importDefault(require("jwk-to-pem"));
+const crypto_1 = require("crypto");
 const config_1 = require("../config/config");
+const OIDCIssuerTrust_1 = require("./OIDCIssuerTrust");
 const KEY_TTL_MS = 6 * 60 * 60 * 1000; // 6h default cache
 const JWKS_REFRESH_FAILED_TTL_MS = 5 * 60 * 1000; // 5m if refresh fails
 const pemCache = {};
+function chunk64(input) {
+    var _a, _b;
+    return (_b = (_a = input.match(/.{1,64}/g)) === null || _a === void 0 ? void 0 : _a.join('\n')) !== null && _b !== void 0 ? _b : input;
+}
+function jwkToPemNative(jwk) {
+    // Prefer certificate chain if provided (commonly present for some issuers)
+    if (Array.isArray(jwk === null || jwk === void 0 ? void 0 : jwk.x5c) && jwk.x5c.length > 0 && typeof jwk.x5c[0] === 'string') {
+        const certDerBase64 = jwk.x5c[0].replace(/\s+/g, '');
+        return `-----BEGIN CERTIFICATE-----\n${chunk64(certDerBase64)}\n-----END CERTIFICATE-----\n`;
+    }
+    // Node supports importing JWK directly for RSA/EC/OKP public keys.
+    const keyObject = (0, crypto_1.createPublicKey)({ key: jwk, format: 'jwk' });
+    const pem = keyObject.export({ format: 'pem', type: 'spki' });
+    return typeof pem === 'string' ? pem : pem.toString('utf8');
+}
 // Derive jwks_uri when not provided.
 // Strategy: If provider.jwks_uri exists -> use it.
 // Else attempt common patterns relative to the base issuer/realm root.
@@ -115,7 +160,7 @@ function fetchJwks(provider) {
             if (!jwk.kid)
                 continue;
             try {
-                const pem = (0, jwk_to_pem_1.default)(jwk);
+                const pem = jwkToPemNative(jwk);
                 pemCache[jwk.kid] = { pem, expiresAt: now + KEY_TTL_MS };
             }
             catch ( /* skip invalid key */_a) { /* skip invalid key */ }
@@ -168,7 +213,7 @@ function verifyExternalToken(token) {
                 console.error('Failed to load OIDC providers from OIDCController, using env fallback:', err);
             providers = config_1.CONFIG.OIDC_PROVIDERS || [];
         }
-        const provider = providers.find((p) => (p.issuer && p.issuer === payload.iss) || (p.authorization_endpoint && p.authorization_endpoint.includes(payload.iss)));
+        const provider = (0, OIDCIssuerTrust_1.findTrustedProviderByIssuer)(providers, payload.iss);
         if (!provider)
             throw { status: 401, message: 'Issuer not trusted' };
         const pem = yield getSigningKey(decodedHeader.kid, provider);
