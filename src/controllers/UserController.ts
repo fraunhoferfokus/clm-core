@@ -123,7 +123,7 @@ class UserController extends BaseModelController<typeof UserDAO, UserModel, User
                     }
                 }).then(() => {
                     return res.json({ message: "Check email-instruction for more information!" })
-                })
+                }).catch((err) => next(err))
             })
         })
     }

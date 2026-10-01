@@ -6,7 +6,7 @@
   "types": "dist/lib/CoreLib.d.ts",
   "scripts": {
     "start": "node dist/server.js",
-    "dev": "npx nodemon src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "build": "rm -rf ./dist && npx tsc",
     "prepare": "npm run build",
     "docker:build": "docker build -t clm-core:latest .",
@@ -67,14 +67,8 @@
     "@types/passport-local": "^1.0.34",
     "@types/pg": "^8.11.6",
     "@types/swagger-jsdoc": "^6.0.4",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3"
-  },
-  "nodemonConfig": {
-    "ignore": [
-      "**/test/**",
-      "**/swagger/**"
-    ],
-    "delay": 2500
   },
   "overrides": {
     "glob": "^13.0.6",

@@ -30,9 +30,10 @@
  import nodemailer from 'nodemailer'
 import { pugEngine } from "nodemailer-pug-engine";
 import { CONFIG } from '../config/config';
-import { ROOT_DIR } from '../server';
-// get rootdir through cwd
-const viewdir = ROOT_DIR + '/views';
+import path from 'path'
+// Resolve from the working directory directly: importing ROOT_DIR from '../server' is a circular
+// import, and the value is still undefined while this module is loaded ("undefined/views").
+const viewdir = path.join(process.cwd(), 'views');
 
 let transporter = nodemailer.createTransport({
     host: CONFIG.SMTP_HOST,
