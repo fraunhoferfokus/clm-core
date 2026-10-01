@@ -27,6 +27,7 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
+import { Logger, LoggerOptions, LoggerDefaults } from './utils/logger';
 import BaseModelController from '../controllers/BaseModelController';
 import AdapterInterface from '../models/AdapterInterface';
 import BaseBackendDTO from '../models/BaseBackendDTO';
@@ -37,11 +38,14 @@ import { BaseExtensionCtrl } from '../controllers/BaseExtensionCtrl';
 import { AuthGuard, CheckResource, CrudAccess, UserAuthenticationOptions } from "../handlers/AuthGuard";
 import errHandler from '../handlers/ErrorHandler';
 import BaseDAO from '../models/BaseDAO';
+import GroupDAO from '../models/Group/GroupDAO';
 import { GroupBDTO, groupBDTOInstance } from '../models/Group/GroupBDTO';
 import GroupModel, { iGroupModel } from '../models/Group/GroupModel';
 import { PathBDTO, pathBDTOInstance } from '../models/Path/PathBDTO';
+import RelationDAO from '../models/Relation/RelationDAO';
 import relationBDTOInstance, { GroupPermission, PreFetchOptions, RelationBDTO, Role, UserGroupOptions } from '../models/Relation/RelationBDTO';
 import RelationModel, { iRelationModel } from '../models/Relation/RelationModel';
+import RoleDAO from '../models/Role/RoleDAO';
 import { UserBDTO, userBDTOInstance } from '../models/User/UserBDTO';
 import { iUserModel, UserModel } from '../models/User/UserModel';
 import { JwtService, jwtServiceInstance, TokenPayload, TokenVerifyResult } from '../services/jwtService';
@@ -77,8 +81,10 @@ declare global {
     }
 }
 
-
 export {
+    Logger,
+    LoggerOptions,
+    LoggerDefaults,
     iUserModel,
     UserModel,
     BaseDAO,
@@ -87,6 +93,7 @@ export {
     iBaseDatamodel,
     BaseFrontendDTO,
     BaseDatamodel,
+    RelationDAO,
     iRelationModel,
     RelationModel,
     BaseModelController,
@@ -98,6 +105,7 @@ export {
     TokenVerifyResult,
     iGroupModel,
     GroupModel,
+    GroupDAO,
     GroupBDTO,
     iConsumerModel,
     ConsumerBDTO,
@@ -115,6 +123,7 @@ export {
     UserAuthenticationOptions,
     MariaAdapter,
     PreFetchOptions,
+    RoleDAO,
     EncryptService,
     relationBDTOInstance,
     userBDTOInstance,

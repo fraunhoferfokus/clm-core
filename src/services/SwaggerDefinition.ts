@@ -27,9 +27,9 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
- import { Components, OAS3Definition, PathItem, Schema } from "swagger-jsdoc";
+import { OAS3Definition, PathItem, Schema } from "swagger-jsdoc";
 import { CONFIG } from "../config/config";
-import { ROOT_DIR } from "../../server";
+import { ROOT_DIR } from "../server";
 
 
 const deployUrl = CONFIG.DEPLOY_URL

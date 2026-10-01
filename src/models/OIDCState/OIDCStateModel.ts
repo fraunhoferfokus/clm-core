@@ -34,6 +34,7 @@ export interface iOIDCStateModel extends iBaseDatamodel {
   clientId?: string;
   redirectUri?: string;
   postLogoutRedirectUri?: string;
+  originalState?: string; // SP's original state parameter (forwarded back to SP)
   expiresAt: Date; // when this state entry becomes invalid
   consumedAt?: Date; // when it was used (optional auditing)
 }
@@ -43,6 +44,7 @@ export class OIDCStateModel extends BaseDatamodel implements iOIDCStateModel {
   clientId?: string;
   redirectUri?: string;
   postLogoutRedirectUri?: string;
+  originalState?: string;
   expiresAt: Date;
   consumedAt?: Date;
 
@@ -52,6 +54,7 @@ export class OIDCStateModel extends BaseDatamodel implements iOIDCStateModel {
     this.clientId = payload.clientId;
     this.redirectUri = payload.redirectUri;
     this.postLogoutRedirectUri = payload.postLogoutRedirectUri;
+    this.originalState = payload.originalState;
     this.expiresAt = payload.expiresAt ? new Date(payload.expiresAt) : new Date(Date.now() + 1000 * 60 * 10); // default 10min
     this.consumedAt = payload.consumedAt ? new Date(payload.consumedAt) : undefined;
   }

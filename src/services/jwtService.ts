@@ -32,8 +32,25 @@ import { CONFIG } from '../config/config';
 import axios from 'axios';
 import { verifyExternalToken } from './jwksService';
 import { findTrustedProviderByIssuer } from './OIDCIssuerTrust';
+import { Logger } from '../lib/utils/logger';
 
-const OIDC_PROVIDER = CONFIG.OIDC_PROVIDERS
+const logger = new Logger({ name: 'jwtService', level: (process.env.LOG_LEVEL as any) || 'info' })
+
+function normalizeProviders<T>(providers: T[] | T | null | undefined): T[] {
+    if (Array.isArray(providers)) return providers
+    if (!providers) return []
+    return [providers]
+}
+
+async function getOIDCProviders() {
+    try {
+        const { getEnrichedProviders } = await import('../controllers/OIDCController')
+        return normalizeProviders(await getEnrichedProviders())
+    } catch (err) {
+        logger.error('Failed to load OIDC providers from OIDCController, using env fallback:', err)
+        return normalizeProviders(CONFIG.OIDC_PROVIDERS)
+    }
+}
 
 /**
  * The payload which is passed to the methods {@link JwtService.createToken}, {@link JwtService.createAccessAndRefreshToken}
@@ -98,7 +115,8 @@ export class JwtService {
         if (!iss) throw ({ message: 'Missing issuer claim', status: 401 })
 
         if (iss !== CONFIG.DEPLOY_URL) {
-            const provider = findTrustedProviderByIssuer(OIDC_PROVIDER, iss)
+            const providers = await getOIDCProviders()
+            const provider = findTrustedProviderByIssuer(providers, iss)
             if (!provider) throw ({ message: `Invalid issuer: ${iss}! `, status: 401 });
             // External claims must come from the verified token payload, not from decode().
             const verified = await verifyExternalToken(token)

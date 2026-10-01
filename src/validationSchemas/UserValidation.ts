@@ -36,6 +36,26 @@ const sharedSchema: Schema = {
 }
 
 const createSchema: Schema = {
+    _id: {
+        optional: true,
+        isString: {
+            errorMessage: 'Has to be a string',
+            bail: true
+        },
+        custom: {
+            options: async (value) => {
+                if (!value) return true
+                try {
+                    await UserDAO.findById(value)
+                    return Promise.reject()
+                } catch (err: any) {
+                    if (err.status === 404) return Promise.resolve(true)
+                    throw err
+                }
+            },
+            errorMessage: 'User with that id already exists'
+        }
+    },
     email: {
         exists: {
             errorMessage: 'Must exist'

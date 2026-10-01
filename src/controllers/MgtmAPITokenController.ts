@@ -28,7 +28,6 @@
  * -----------------------------------------------------------------------------
  */
  
-import { Handler } from 'express';
 import BaseModelController from './BaseModelController'
 import { AuthGuard } from '../handlers/AuthGuard'
 import ConsumerDAO from '../models/ServiceConsumer/ConsumerDAO';
@@ -38,8 +37,8 @@ import { createApiTokenValidation, updateApiTokenValidation } from '../validatio
 import transporter from '../services/emailService';
 import express from 'express'
 import SwaggerDefinition from '../services/SwaggerDefinition';
-import { Schema } from 'swagger-jsdoc';
 import { CONFIG } from '../config/config';
+import { Logger } from '../lib/utils/logger';
 
 
 const Cryptr = require('cryptr');
@@ -47,6 +46,7 @@ const Cryptr = require('cryptr');
 const cryptr = new Cryptr(CONFIG.VERIFICATION_TOKEN_SECRET);
 const basePath = CONFIG.BASE_PATH || '/core'
 const baseLocation = `${basePath}/mgmt/consumers`
+const logger = new Logger({ name: 'MgtmAPITokenController', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 
 class MgtmTokenController extends BaseModelController<typeof ConsumerDAO, ConsumerModel, ConsumerFDTO>{
@@ -70,7 +70,7 @@ class MgtmTokenController extends BaseModelController<typeof ConsumerDAO, Consum
                         })
                         .catch((err) => {
                             // Fehlerbehandlung, falls das Aktualisieren fehlschlägt
-                            console.error({ err })
+                            logger.error('Failed to update created API token', err)
                             next(err)
                         })
                 })

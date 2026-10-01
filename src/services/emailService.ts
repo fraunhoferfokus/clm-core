@@ -30,7 +30,7 @@
  import nodemailer from 'nodemailer'
 import { pugEngine } from "nodemailer-pug-engine";
 import { CONFIG } from '../config/config';
-import { ROOT_DIR } from '../../server';
+import { ROOT_DIR } from '../server';
 // get rootdir through cwd
 const viewdir = ROOT_DIR + '/views';
 

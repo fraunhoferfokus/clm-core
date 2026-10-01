@@ -29,6 +29,9 @@
  */
 import express from 'express';
 import { CONFIG } from '../config/config';
+import { Logger } from '../lib/utils/logger';
+
+const logger = new Logger({ name: 'ErrorHandler', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 
 /**
@@ -37,7 +40,7 @@ import { CONFIG } from '../config/config';
  */
 
 const errHandler: express.ErrorRequestHandler = (err, req, res, next) => {
-    if (CONFIG.VERBOSE === 'true') console.error("Full error:", JSON.stringify(err, null, 2))
+    logger.error('Full error:', err)
     return res.status(err.status ?? 500).json({ message: err?.message || 'Some error occured. Enable `VEBOSE` flag for the container and check the logs.' });
 }
 

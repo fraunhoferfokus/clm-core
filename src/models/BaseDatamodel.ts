@@ -27,7 +27,7 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
- import { v4 as uuidv4 } from 'uuid';
+ import { randomUUID } from 'crypto';
 
 
 /** 
@@ -69,7 +69,7 @@ export default class BaseDatamodel implements iBaseDatamodel {
 
     constructor(payload: iBaseDatamodel) {
         this._rev = payload._rev
-        this._id = payload._id ?? uuidv4()
+        this._id = payload._id ?? randomUUID()
         this.createdAt = payload.createdAt ?? new Date();
         this.updatedAt = payload.updatedAt ?? this.createdAt;
     }

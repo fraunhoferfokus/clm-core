@@ -106,15 +106,16 @@ class UserController extends BaseModelController<typeof UserDAO, UserModel, User
                 return transporter.sendMail({
                     from: CONFIG.SMTP_FROM,
                     to: req.body.email,
-                    text: "Registrierung am KI-Demonstrator der Pionierschule",
-                    subject: 'Registrierung am KI-Demonstrator der Pionierschule',
+                    text: "Registrierung / Registration",
+                    subject: 'Registrierung / Registration',
                     //@ts-ignore
                     template: 'register',   // defines the template to compile for the email
                     ctx: {
                         // this is available in the template
                         firstname: doc!.givenName,
                         lastname: doc!.familyName,
-                        url: `${CONFIG.DEPLOY_URL}/users/verifyToken/${cryptr.encrypt(doc!._id)}`
+                        url: `${CONFIG.DEPLOY_URL}/users/verifyToken/${cryptr.encrypt(doc!._id)}`,
+                        imprint: CONFIG.IMPRINT_URL
 
                     }
                 }).then(() => {

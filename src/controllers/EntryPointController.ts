@@ -44,6 +44,9 @@ import OIDCClientController from './OIDCClientController'
 import OIDCProviderController from './OIDCProviderController'
 import ResourceController from './ResourceController'
 import UserController from './UserController'
+import { Logger } from '../lib/utils/logger'
+
+const logger = new Logger({ name: 'EntryPointController', level: (process.env.LOG_LEVEL as any) || 'info' })
 /**
  * @openapi
  * components:
@@ -123,7 +126,7 @@ const options: swaggerJsdoc.Options = {
         }]
     },
     apis: [
-        './src/controllers/*.ts'
+        './dist/controllers/*.js'
     ]
 }
 const swaggerSpecification = swaggerJsdoc(options)
@@ -139,6 +142,9 @@ const EXCLUDED_PATHS = [
     `${basePath}/sso/success`,
     `${basePath}/sso/oidc/backend/login`,
     `${basePath}/sso/oidc/access_token_by_code`,
+    `${basePath}/sso/oidc/broker/logout`,
+    `${basePath}/sso/oidc/broker/logout/redirect`,
+    `${basePath}/sso/oidc/.well-known/openid-configuration`,
     `/health`
 ]
 EntryPointController.use('/sso/oidc', OIDController.router)
@@ -256,7 +262,7 @@ EntryPointController.get('/swagger', (req, res, next) => {
     try {
         res.json(swaggerSpecification)
     } catch (err) {
-        console.error(err)
+        logger.error('Failed to render swagger specification', err)
         return res.status(500).json(err)
     }
 })

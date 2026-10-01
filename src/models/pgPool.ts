@@ -31,6 +31,9 @@
 import { Pool } from 'pg';
 import { CONFIG } from "../config/config";
 import fs from 'fs';
+import { Logger } from '../lib/utils/logger';
+
+const logger = new Logger({ name: 'pgPool', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 // Vereinfachte Variante: Minimaler Auto-Reconnect bei Pool-Fehlern.
 // Entfernt Heartbeat, Memory-Monitoring und komplexes Backoff.
@@ -60,7 +63,7 @@ switch (SSL_MODE) {
                 ca: fs.readFileSync(SSL_CA_PATH).toString(),
             };
         } else {
-            console.warn('SSL CA path not found or not specified. Falling back to no SSL.');
+            logger.warn('SSL CA path not found or not specified. Falling back to no SSL.');
             ssl = false;
         }
         break;
@@ -73,8 +76,9 @@ switch (SSL_MODE) {
 class SimpleAutoReconnectPool {
     private pool: Pool;
     private rebuilding = false;
+    private shuttingDown = false;
     private retryCount = 0; // Anzahl ausgeführter Rebuild-Versuche seit letztem Erfolg
-    private readonly maxRetries = 4; // Maximal 4 verzögerte Versuche (inkl. letztem 120s)
+    private readonly maxRetries = Infinity; // Retry indefinitely (was 4)
     private retryTimer?: NodeJS.Timeout; // Timer für geplanten Rebuild
     private readonly baseDelayMs = 15000; // Erster Versuch nach 15s
     // Verbindungsbezogene SQLSTATE Codes (Klasse 08 + relevante Admin/Shutdown Fälle)
@@ -93,12 +97,35 @@ class SimpleAutoReconnectPool {
     constructor() {
         this.pool = this.buildPool();
         this.attach();
-        process.on('SIGTERM', () => this.shutdown());
-        process.on('SIGINT', () => this.shutdown());
+        // Global error catch to prevent unhandled rejections from crashing the process
+        this.pool.on('error', (err: any) => {
+            logger.error('pgPool error:', err);
+        });
     }
 
-    query(text: string, params?: any[]) {
-        return this.pool.query(text, params);
+    async query(text: string, params?: any[]) {
+        const activePool = this.pool;
+
+        try {
+            return await activePool.query(text, params);
+        } catch (err: any) {
+            if (this.shuttingDown) throw err;
+
+            const sqlState = err?.code || err?.sqlState || err?.sqlstate;
+            const nodeCode = err?.code;
+            const message = err?.message || String(err);
+            const canRecover = this.isPoolEndedError(message) || this.shouldReconnect(sqlState, nodeCode, message);
+
+            if (!canRecover) throw err;
+
+            // If the failed query still points at the current pool, rebuild immediately.
+            // Otherwise another code path already rotated the pool and we can retry once.
+            if (activePool === this.pool) {
+                this.rebuild();
+            }
+
+            return this.pool.query(text, params);
+        }
     }
 
     private buildPool() {
@@ -119,9 +146,13 @@ class SimpleAutoReconnectPool {
             const nodeCode = err?.code; // Bei Netzwerkproblemen ebenfalls belegt
             const message = err?.message || String(err);
             const shouldReconnect = this.shouldReconnect(sqlState, nodeCode, message);
-            console.error('[pgPool][error]', { sqlState, nodeCode, message, shouldReconnect });
+            logger.error('pgPool error:', { sqlState, nodeCode, message, shouldReconnect });
             if (shouldReconnect) this.scheduleRebuild();
         });
+    }
+
+    private isPoolEndedError(message?: string): boolean {
+        return !!message && message.includes('Cannot use a pool after calling end on the pool');
     }
 
     private shouldReconnect(sqlState?: string, nodeCode?: string, message?: string): boolean {
@@ -148,11 +179,11 @@ class SimpleAutoReconnectPool {
         if (this.rebuilding) return; // Bereits beim Rebuild
         if (this.retryTimer) return; // Bereits ein Versuch geplant
         if (this.retryCount >= this.maxRetries) {
-            console.error('[pgPool] Maximalzahl Rebuild-Versuche erreicht; kein weiterer automatischer Versuch.');
+            logger.error('Maximalzahl Rebuild-Versuche erreicht; kein weiterer automatischer Versuch.');
             return;
         }
-        const delay = this.baseDelayMs * Math.pow(2, this.retryCount); // 15s, 30s, 60s, 120s
-        console.info(`[pgPool] Rebuild in ${(delay/1000)}s geplant (Versuch ${this.retryCount + 1}/${this.maxRetries}).`);
+        const delay = Math.min(this.baseDelayMs * Math.pow(2, Math.min(this.retryCount, 3)), 120000); // Cap at 120s
+        logger.info(`Rebuild in ${(delay/1000)}s geplant (Versuch ${this.retryCount + 1}/${this.maxRetries}).`);
         this.retryTimer = setTimeout(() => {
             this.retryTimer = undefined;
             this.rebuild();
@@ -170,11 +201,11 @@ class SimpleAutoReconnectPool {
             // Test-Query: Bei Erfolg Retry-Zähler zurücksetzen
             this.pool.query('SELECT 1').then(() => {
                 this.retryCount = 0;
-                console.info('[pgPool] Pool neu aufgebaut (Verbindungstest erfolgreich).');
+                logger.info('Pool neu aufgebaut (Verbindungstest erfolgreich).');
             }).catch(err => {
                 // Fehler beim Soforttest => Zähler erhöhen und nächsten Versuch planen
                 this.retryCount++;
-                console.error('[pgPool] Fehler beim Verbindungstest nach Rebuild:', err.message || err);
+                logger.error('Fehler beim Verbindungstest nach Rebuild:', err.message || err);
                 this.scheduleRebuild();
             });
         } finally {
@@ -187,6 +218,7 @@ class SimpleAutoReconnectPool {
     }
 
     async shutdown() {
+        this.shuttingDown = true;
         if (this.retryTimer) clearTimeout(this.retryTimer);
         try { await this.pool.end(); } catch (_) { }
     }

@@ -39,19 +39,25 @@ import { RessourcePermissions } from '../models/Role/RoleModel'
 import RoleDAO from '../models/Role/RoleDAO'
 import { findTrustedProviderByIssuer } from '../services/OIDCIssuerTrust'
 import { syncGroupsAndMembershipsFromClaims } from '../services/OIDCGroupSyncService'
+import { Logger } from '../lib/utils/logger'
+
+const logger = new Logger({ name: 'AuthGuard', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 
-// Get enriched providers (with jwks_uri fallback)
-let OIDC_PROVIDER_ENRICHED: any[] = []
-function getOIDCProviders() {
+function normalizeProviders<T>(providers: T[] | T | null | undefined): T[] {
+    if (Array.isArray(providers)) return providers
+    if (!providers) return []
+    return [providers]
+}
+
+async function getOIDCProviders() {
     try {
         // Import dynamically to avoid circular dependencies
         const { getEnrichedProviders } = require('../controllers/OIDCController')
-        OIDC_PROVIDER_ENRICHED = getEnrichedProviders()
+        return normalizeProviders(await getEnrichedProviders())
     } catch {
-        OIDC_PROVIDER_ENRICHED = CONFIG.OIDC_PROVIDERS || []
+        return normalizeProviders(CONFIG.OIDC_PROVIDERS)
     }
-    return OIDC_PROVIDER_ENRICHED
 }
 // Log version when AuthGuard is imported (helps consumers using the npm package)
 (() => {
@@ -233,14 +239,14 @@ export class AuthGuard {
 
                 if (issuer !== CONFIG.DEPLOY_URL && !CONFIG.ALLOWED_ISSUERS.includes(issuer)) {
                     isExternalToken = true
-                    const providers = getOIDCProviders()
+                    const providers = await getOIDCProviders()
                     const provider = findTrustedProviderByIssuer(providers, issuer)
                     if (!provider) return next({ message: `Invalid issuer: ${issuer}! `, status: 401 });
                     // JWKS based verification replaces userinfo endpoint call.
                     try {
                         verifiedToken = await jwtServiceInstance.verifyToken(token) as JwtPayload
                     } catch (err: any) {
-                        console.error(err)
+                        logger.error('External token verification failed', err)
                         return next({ status: err.status || 401, message: err.message || 'IdP validation error with provided token...' })
                     }
                 } else {
@@ -284,7 +290,7 @@ export class AuthGuard {
                             }
                         } catch (e) {
                             // Do not block request on group sync errors
-                            if (CONFIG.VERBOSE === 'true') console.error('AuthGuard group sync error:', e)
+                            logger.error('AuthGuard group sync error:', e)
                         }
                     }
                 }
@@ -318,7 +324,7 @@ export class AuthGuard {
             if (req.requestingUser?.isSuperAdmin) return next()
 
             const allRelations = await RelationBDTO.findAll()
-            const usersPermissions = await RelationBDTO.getUsersPermissions(req.requestingUser?._id!)
+            const usersPermissions = await RelationBDTO.getUsersPermissions(req.requestingUser?._id!, { preRelations: allRelations })
             req.requestingUser!.permissions = usersPermissions!
 
 
@@ -326,12 +332,20 @@ export class AuthGuard {
             const method = req.method.toUpperCase()
             let crudPermission = requiredCrud || HTTP_METHODS_CRUD_MAPPER[method as keyof typeof HTTP_METHODS_CRUD_MAPPER]
 
-            const userIsInGroups = (await RelationBDTO.findAll()).filter((relation) => relation.toId === req.requestingUser?._id && relation.fromType === 'group')
+            const userIsInGroups = allRelations.filter((relation) => relation.toId === req.requestingUser?._id && relation.fromType === 'group')
+            const groupRoleRelations = userIsInGroups
+                .map((relation) => allRelations.find((candidate) => candidate.fromId === relation.fromId && candidate.toType === 'role'))
+                .filter(Boolean)
+            const uniqueRoleIds = [...new Set(groupRoleRelations.map((relation) => relation!.toId))]
+            const roles = await Promise.all(uniqueRoleIds.map((roleId) => RoleDAO.findById(roleId)))
+            const rolesById = new Map(roles.map((role) => [role._id, role]))
 
             let allowedAction = false
             for (const userIsInGroup of userIsInGroups) {
-                const groupHasRoleRelation = allRelations.find((relation) => relation.fromId === userIsInGroup.fromId && relation.toType === 'role')!
-                const groupRole = await RoleDAO.findById(groupHasRoleRelation.toId)
+                const groupHasRoleRelation = groupRoleRelations.find((relation) => relation!.fromId === userIsInGroup.fromId)
+                if (!groupHasRoleRelation) continue
+                const groupRole = rolesById.get(groupHasRoleRelation.toId)
+                if (!groupRole) continue
                 let currentCrudPermissions = groupRole.resourcePermissions[ressource]
                 if ((currentCrudPermissions & crudPermission) === crudPermission) {
                     allowedAction = true

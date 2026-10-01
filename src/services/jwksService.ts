@@ -31,6 +31,9 @@ import axios from 'axios';
 import { createPublicKey } from 'crypto';
 import { CONFIG } from '../config/config';
 import { findTrustedProviderByIssuer } from './OIDCIssuerTrust';
+import { Logger } from '../lib/utils/logger';
+
+const logger = new Logger({ name: 'jwksService', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 // Provider config shape (partial)
 interface OIDCProviderConfig {
@@ -48,10 +51,27 @@ interface CachedKey {
   expiresAt: number; // epoch ms
 }
 
+interface SigningKeyCandidate {
+  kid?: string;
+  pem: string;
+}
+
+interface CachedProviderKeys {
+  keys: SigningKeyCandidate[];
+  expiresAt: number;
+}
+
 const KEY_TTL_MS = 6 * 60 * 60 * 1000; // 6h default cache
 const JWKS_REFRESH_FAILED_TTL_MS = 5 * 60 * 1000; // 5m if refresh fails
 
 const pemCache: Record<string, CachedKey> = {};
+const providerKeyCache: Record<string, CachedProviderKeys> = {};
+
+function isKidRequired(): boolean {
+  const rawValue = process.env.OIDC_REQUIRE_KID;
+  if (rawValue === undefined) return true;
+  return !['false', '0', 'no', 'off'].includes(rawValue.trim().toLowerCase());
+}
 
 function chunk64(input: string): string {
   return input.match(/.{1,64}/g)?.join('\n') ?? input;
@@ -70,14 +90,55 @@ function jwkToPemNative(jwk: any): string {
   return typeof pem === 'string' ? pem : pem.toString('utf8');
 }
 
+function normalizeUrl(value?: string): string | undefined {
+  if (!value || typeof value !== 'string') return undefined;
+  try {
+    const parsed = new URL(value);
+    const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+    return `${parsed.origin}${normalizedPath}`;
+  } catch (_) {
+    return undefined;
+  }
+}
+
+function deriveIssuerBase(provider: OIDCProviderConfig): string | undefined {
+  const normalizedIssuer = normalizeUrl(provider.issuer);
+  if (normalizedIssuer) return normalizedIssuer;
+
+  const normalizedAuthorizationEndpoint = normalizeUrl(provider.authorization_endpoint);
+  if (!normalizedAuthorizationEndpoint) return undefined;
+
+  // Remove common authorization endpoint suffixes so discovery starts from the issuer root.
+  return normalizedAuthorizationEndpoint.replace(/\/(protocol\/openid-connect\/auth|oauth2\/authorize|authorize|auth)$/i, '');
+}
+
+async function discoverJwksUri(provider: OIDCProviderConfig): Promise<string | undefined> {
+  const issuerBase = deriveIssuerBase(provider);
+  if (!issuerBase) return undefined;
+
+  try {
+    const discoveryUrl = new URL(`${issuerBase}/.well-known/openid-configuration`);
+    const { data } = await axios.get(discoveryUrl.toString(), { timeout: 5000 });
+    if (typeof data?.jwks_uri === 'string' && data.jwks_uri.trim()) {
+      return data.jwks_uri.trim();
+    }
+  } catch (_) { /* ignore */ }
+
+  return undefined;
+}
+
 // Derive jwks_uri when not provided.
 // Strategy: If provider.jwks_uri exists -> use it.
+// Else prefer OIDC discovery via issuer/.well-known/openid-configuration.
 // Else attempt common patterns relative to the base issuer/realm root.
-// We try in order and pick first successful (HTTP 200) response returning keys.
+// We try in order and pick first successful response returning keys or jwks_uri.
 async function deriveJwksUri(provider: OIDCProviderConfig): Promise<string> {
   // Highest priority: explicit global override via environment
   if (process.env.GLOBAL_JWKS_URI) return process.env.GLOBAL_JWKS_URI;
   if (provider.jwks_uri) return provider.jwks_uri;
+
+  const discoveredJwksUri = await discoverJwksUri(provider);
+  if (discoveredJwksUri) return discoveredJwksUri;
 
   // Attempt to guess issuer from authorization_endpoint by trimming standard path parts.
   // Common keycloak pattern: https://host/realms/<realm>/protocol/openid-connect/auth
@@ -128,44 +189,65 @@ async function deriveJwksUri(provider: OIDCProviderConfig): Promise<string> {
   throw { status: 500, message: 'Unable to derive jwks_uri for provider' };
 }
 
-async function fetchJwks(provider: OIDCProviderConfig) {
+async function fetchJwks(provider: OIDCProviderConfig): Promise<SigningKeyCandidate[]> {
   const jwksUri = await deriveJwksUri(provider);
   const { data } = await axios.get(jwksUri, { timeout: 5000 });
   if (!data || !Array.isArray(data.keys)) {
     throw { status: 500, message: 'Invalid JWKS response' };
   }
   const now = Date.now();
+  const signingKeys: SigningKeyCandidate[] = [];
   for (const jwk of data.keys) {
-    if (!jwk.kid) continue;
     try {
       const pem = jwkToPemNative(jwk);
-      pemCache[jwk.kid] = { pem, expiresAt: now + KEY_TTL_MS };
+      const signingKey: SigningKeyCandidate = { kid: typeof jwk.kid === 'string' ? jwk.kid : undefined, pem };
+      signingKeys.push(signingKey);
+      if (signingKey.kid) {
+        pemCache[signingKey.kid] = { pem, expiresAt: now + KEY_TTL_MS };
+      }
     } catch { /* skip invalid key */ }
   }
-  return data.keys;
+  if (signingKeys.length === 0) {
+    throw { status: 500, message: 'JWKS does not contain usable signing keys' };
+  }
+  providerKeyCache[jwksUri] = { keys: signingKeys, expiresAt: now + KEY_TTL_MS };
+  return signingKeys;
+}
+
+async function getProviderSigningKeys(provider: OIDCProviderConfig): Promise<SigningKeyCandidate[]> {
+  const jwksUri = await deriveJwksUri(provider);
+  const cached = providerKeyCache[jwksUri];
+  if (cached && cached.expiresAt > Date.now()) return cached.keys;
+
+  try {
+    return await fetchJwks(provider);
+  } catch (err) {
+    // Reuse stale provider keys briefly to keep verification available during transient JWKS failures.
+    if (cached && cached.keys.length > 0) {
+      cached.expiresAt = Date.now() + JWKS_REFRESH_FAILED_TTL_MS;
+      return cached.keys;
+    }
+    throw err;
+  }
 }
 
 export async function getSigningKey(kid: string, provider: OIDCProviderConfig) {
   const cached = pemCache[kid];
   if (cached && cached.expiresAt > Date.now()) return cached.pem;
-  try {
-    await fetchJwks(provider);
-  } catch (err) {
-    // extend old key a bit if it exists
-    if (cached) {
-      cached.expiresAt = Date.now() + JWKS_REFRESH_FAILED_TTL_MS;
-      return cached.pem;
-    }
-    throw err;
+  const signingKeys = await getProviderSigningKeys(provider);
+  const matchingKey = signingKeys.find((signingKey) => signingKey.kid === kid);
+  if (matchingKey) return matchingKey.pem;
+  if (cached) {
+    cached.expiresAt = Date.now() + JWKS_REFRESH_FAILED_TTL_MS;
+    return cached.pem;
   }
-  const updated = pemCache[kid];
-  if (!updated) throw { status: 401, message: 'Unknown signing key id' };
-  return updated.pem;
+  throw { status: 401, message: 'Unknown signing key id' };
 }
 
 export async function verifyExternalToken(token: string) {
   const decodedHeader = decodeJwtHeader(token);
-  if (!decodedHeader || !decodedHeader.kid) throw { status: 400, message: 'Missing kid in token header' };
+  if (!decodedHeader) throw { status: 400, message: 'Invalid token header' };
+  if (!decodedHeader.kid && isKidRequired()) throw { status: 400, message: 'Missing kid in token header' };
 
   // Determine provider based on iss claim
   const payload = decodeJwtPayload(token);
@@ -176,22 +258,42 @@ export async function verifyExternalToken(token: string) {
   let providers = []
   try {
     const { getEnrichedProviders } = await import('../controllers/OIDCController')
-    providers = getEnrichedProviders()
+    providers = await getEnrichedProviders()
   } catch (err) {
     // Fallback to CONFIG if OIDCController import fails
-    if (CONFIG.VERBOSE === 'true') console.error('Failed to load OIDC providers from OIDCController, using env fallback:', err)
+    logger.error('Failed to load OIDC providers from OIDCController, using env fallback:', err)
     providers = CONFIG.OIDC_PROVIDERS || []
   }
   
   const provider = findTrustedProviderByIssuer(providers as OIDCProviderConfig[], payload.iss);
   if (!provider) throw { status: 401, message: 'Issuer not trusted' };
 
-  const pem = await getSigningKey(decodedHeader.kid, provider);
   // Allow configurable algorithms; default to common RSA algorithms
   const allowedAlgs = (process.env.OIDC_JWT_ALGS || 'RS256,RS384,RS512')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean)
+
+  if (decodedHeader.kid) {
+    const pem = await getSigningKey(decodedHeader.kid, provider);
+    return verifyTokenWithPem(token, pem, allowedAlgs);
+  }
+
+  const signingKeys = await getProviderSigningKeys(provider);
+  let lastVerificationError: any;
+  for (const signingKey of signingKeys) {
+    try {
+      // Missing kid is only allowed when explicitly configured because this path verifies against every provider key.
+      return await verifyTokenWithPem(token, signingKey.pem, allowedAlgs);
+    } catch (err) {
+      lastVerificationError = err;
+    }
+  }
+
+  throw lastVerificationError || { status: 401, message: 'Token verification failed' };
+}
+
+function verifyTokenWithPem(token: string, pem: string, allowedAlgs: string[]) {
   return new Promise((resolve, reject) => {
     import('jsonwebtoken').then(jwt => {
       jwt.verify(token, pem, { algorithms: allowedAlgs as any }, (err: any, decoded: any) => {
@@ -215,6 +317,7 @@ function decodeJwtPayload(token: string): any | undefined { return decodeSection
 // Expose a utility to clear cache (e.g., for tests)
 export function _clearJwksCache() {
   Object.keys(pemCache).forEach(k => delete pemCache[k]);
+  Object.keys(providerKeyCache).forEach(k => delete providerKeyCache[k]);
 }
 
 // NOTE: This service is used to validate external OIDC tokens instead of calling userinfo_endpoint.

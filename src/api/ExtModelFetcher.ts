@@ -75,6 +75,17 @@ class ExtModelFetcher {
 
     }
 
+    post = async (modelPath: string, body: any) => {
+        if (!this.token) await this.createAccessToken()
+        const resp = await axios.post(`${DEPLOY_URL}/${modelPath}`, body, {
+            headers: {
+                authorization: `Bearer ${API_TOKEN}`,
+                'x-access-token': this.token
+            }
+        })
+        return resp.data
+    }
+
 }
 
 

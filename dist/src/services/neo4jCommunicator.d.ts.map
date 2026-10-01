@@ -1,1 +1,0 @@
-{"version":3,"file":"neo4jCommunicator.d.ts","sourceRoot":"","sources":["../../../src/services/neo4jCommunicator.ts"],"names":[],"mappings":"AAsBA,MAAM,CAAC,OAAO,OAAO,iBAAiB;IAClC,MAAM,CAAC,KAAK,CAAC,MAAM,EAAE,MAAM,EAAE,IAAI,sDAAsB;CAM1D"}

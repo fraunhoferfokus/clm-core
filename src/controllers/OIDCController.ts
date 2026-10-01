@@ -44,10 +44,18 @@ import OIDCClientDAO from '../models/OIDCClient/OIDCClientDAO';
 import OIDCProviderDAO from '../models/OIDCProvider/OIDCProviderDAO';
 import { verifyExternalToken } from '../services/jwksService';
 import { syncGroupsAndMembershipsFromClaims } from '../services/OIDCGroupSyncService';
+import { Logger } from '../lib/utils/logger';
 // get executing diretory of node-process
 
+const logger = new Logger({ name: 'OIDCController', level: (process.env.LOG_LEVEL as any) || 'info' })
+
 const OIDC_PROVIDER = CONFIG.OIDC_PROVIDERS
-const firstProvider = OIDC_PROVIDER[0]
+
+function normalizeProviders<T>(providers: T[] | T | null | undefined): T[] {
+    if (Array.isArray(providers)) return providers
+    if (!providers) return []
+    return [providers]
+}
 
 // Enrich OIDC providers with global jwks_uri if missing
 let enrichedProviders: any[] = []
@@ -60,12 +68,12 @@ async function enrichProviders() {
             providersToEnrich = dbProviders
         } else {
             // Fallback to env config
-            providersToEnrich = OIDC_PROVIDER || []
+            providersToEnrich = normalizeProviders(OIDC_PROVIDER)
         }
     } catch (err) {
         // On DB error, fallback to env config
-        providersToEnrich = OIDC_PROVIDER || []
-        if (CONFIG.VERBOSE === 'true') console.error('Failed to load OIDC providers from DB, using env fallback:', err)
+        providersToEnrich = normalizeProviders(OIDC_PROVIDER)
+        logger.error('Failed to load OIDC providers from DB, using env fallback:', err)
     }
 
     enrichedProviders = providersToEnrich.map((provider: any) => {
@@ -86,13 +94,11 @@ export async function reloadProviders() {
     await enrichProviders()
 }
 
-// Export enriched providers for use in other modules (like jwksService)
-export function getEnrichedProviders() {
-    return enrichedProviders.length > 0 ? enrichedProviders : OIDC_PROVIDER
+// Always refresh provider configuration before returning it so manual DB edits are visible immediately.
+export async function getEnrichedProviders() {
+    await enrichProviders()
+    return enrichedProviders.length > 0 ? enrichedProviders : normalizeProviders(OIDC_PROVIDER)
 }
-
-// Get first enriched provider
-const firstEnrichedProvider = getEnrichedProviders()[0]
 
 // Dynamic OIDC clients loader: DB first, then env fallback
 let OIDC_CLIENTS: any[] = []
@@ -109,23 +115,18 @@ async function loadOIDCClients() {
     } catch (err) {
         // On DB error, fallback to env config
         OIDC_CLIENTS = CONFIG.ODIC_CLIENTS || []
-        if (CONFIG.VERBOSE === 'true') console.error('Failed to load OIDC clients from DB, using env fallback:', err)
+        logger.error('Failed to load OIDC clients from DB, using env fallback:', err)
     }
 }
 
-// Utility to get current OIDC clients (refresh from DB if needed)
+export async function reloadOIDCClients() {
+    await loadOIDCClients()
+}
+
+// Refresh OIDC clients on every access so out-of-band DB changes are picked up without restart.
 async function getOIDCClients() {
-    if (OIDC_CLIENTS.length === 0) {
-        await loadOIDCClients()
-    }
+    await loadOIDCClients()
     return OIDC_CLIENTS
-}
-
-let authorization_endpoint: string, token_endpoint: string, client_id: string, client_secret: string,
-    end_session_endpoint: string, userinfo_endpoint: string
-    ;
-if (firstEnrichedProvider) {
-    [authorization_endpoint, token_endpoint, client_id, client_secret, end_session_endpoint, userinfo_endpoint] = [firstEnrichedProvider.authorization_endpoint, firstEnrichedProvider.token_endpoint, firstEnrichedProvider.client_id, firstEnrichedProvider.client_secret, firstEnrichedProvider.end_session_endpoint, firstEnrichedProvider.userinfo_endpoint]
 }
 
 // In-memory oidc_state removed. Using persistent table 'oidc_states' for multi-pod compatibility.
@@ -148,10 +149,11 @@ class OIDController {
         this.router.post('/access_token_by_code', this.getAccessTokenByCode)
         this.router.get('/broker/logout', this.brokerLogout)
         this.router.get('/broker/logout/redirect', this.brokerLogoutRedirect)
+        this.router.get('/.well-known/openid-configuration', this.discoveryDocument)
         
         // Initialize OIDC clients on startup
         loadOIDCClients().catch(err => {
-            if (CONFIG.VERBOSE === 'true') console.error('Error loading OIDC clients on init:', err)
+            logger.error('Error loading OIDC clients on init:', err)
         })
     }
 
@@ -175,7 +177,17 @@ class OIDController {
             .includes(normalizedCandidate)
     }
 
+    private async getPrimaryProvider() {
+        const providers = await getEnrichedProviders()
+        return providers[0]
+    }
+
     private async renderSuccessPage(res: express.Response, user: UserModel, tokens: { idpAccessToken: string, idpRefreshToken: string, idpAccessTokenExpiresIn: string | number, idpRefreshTokenExpiresIn: string | number }) {
+        const provider = await this.getPrimaryProvider()
+        if (!provider) {
+            throw { status: 503, message: 'No active OIDC provider configured' }
+        }
+
         const gateway_url = CONFIG.DEPLOY_URL.includes('localhost') ? 'http://gateway/api' : CONFIG.DEPLOY_URL
         const course_structure_url = `${gateway_url}/learningObjects/users/${user._id}/courses`
         const course_structure = (await axios.get(course_structure_url, {
@@ -192,7 +204,7 @@ class OIDController {
             refresh_token_expires_in: tokens.idpRefreshTokenExpiresIn,
             course_structure_json: JSON.stringify(course_structure, null, 2),
             user,
-            end_session_endpoint: end_session_endpoint + '?post_logout_redirect_uri=' + encodeURIComponent(CONFIG.DEPLOY_URL + '/core/sso/oidc') + '&client_id=' + encodeURIComponent(client_id)
+            end_session_endpoint: provider.end_session_endpoint + '?post_logout_redirect_uri=' + encodeURIComponent(CONFIG.DEPLOY_URL + '/core/sso/oidc') + '&client_id=' + encodeURIComponent(provider.client_id)
         })
     }
 
@@ -204,16 +216,18 @@ class OIDController {
 
             const clients = await getOIDCClients()
             const oidc_client = clients.find((oidc_client) => oidc_client.client_id === odic_client_client_id)
+            const provider = await this.getPrimaryProvider()
 
             if (!oidc_client || !this.isAllowedRedirectUri(oidc_client, oidc_client_post_logout_redirect_uri as string)) return next({ status: 400, message: 'Invalid post_logout_redirect_uri' })
+            if (!provider?.end_session_endpoint || !provider?.client_id) return next({ status: 503, message: 'No active OIDC provider configured' })
             let broker_post_logout_uri = CONFIG.DEPLOY_URL + '/core/sso/oidc/broker/logout/redirect'
 
-            const url = new URL(end_session_endpoint)
+            const url = new URL(provider.end_session_endpoint)
             const state = randomUUID();
             url.searchParams.set('state', state)
             url.searchParams.append('response_type', 'code')
             url.searchParams.append('scope', 'openid')
-            url.searchParams.append('client_id', client_id)
+            url.searchParams.append('client_id', provider.client_id)
             url.searchParams.append('post_logout_redirect_uri', broker_post_logout_uri)
             await OIDCStateDAO.insert(new OIDCStateModel({ state, clientId: oidc_client.client_id, postLogoutRedirectUri: this.normalizeRedirectUri(oidc_client_post_logout_redirect_uri as string) }))
 
@@ -239,9 +253,50 @@ class OIDController {
     }
 
 
+    discoveryDocument: express.Handler = async (req, res, next) => {
+        try {
+            const providers = await OIDCProviderDAO.findAllActive()
+            const fallbackProviders = await getEnrichedProviders()
+            const provider = providers.length > 0 ? providers[0] : fallbackProviders[0]
+            if (!provider) {
+                return res.status(503).json({ error: 'oidc_provider_not_configured', error_description: 'No active OIDC provider configured' })
+            }
+
+            const deployUrl = CONFIG.DEPLOY_URL
+            const basePath = CONFIG.BASE_PATH || '/core'
+            const issuer = provider.issuer || ''
+            const jwksUri = provider.jwks_uri || ''
+
+            return res.json({
+                issuer,
+                authorization_endpoint: `${deployUrl}${basePath}/sso/oidc`,
+                token_endpoint: `${deployUrl}${basePath}/sso/oidc/access_token_by_code`,
+                jwks_uri: jwksUri,
+                userinfo_endpoint: provider.userinfo_endpoint || '',
+                end_session_endpoint: `${deployUrl}${basePath}/sso/oidc/broker/logout`,
+                response_types_supported: ['code'],
+                subject_types_supported: ['public'],
+                id_token_signing_alg_values_supported: ['RS256'],
+                grant_types_supported: ['authorization_code'],
+                code_challenge_methods_supported: ['S256'],
+                scopes_supported: ['openid'],
+                token_endpoint_auth_methods_supported: ['client_secret_post']
+            })
+        } catch (err) {
+            return next(err)
+        }
+    }
+
     ssoLanding: express.Handler = async (req, res, next) => {
         try {
-            const { client_id: oidc_client_id, scope: oidc_client_scope, redirect_uri: oidc_redirect_uri } = req.query
+            const { client_id: oidc_client_id, scope: oidc_client_scope, redirect_uri: oidc_redirect_uri, state: sp_state, nonce: sp_nonce } = req.query
+            const provider = await this.getPrimaryProvider()
+
+            if (!provider?.authorization_endpoint || !provider?.client_id) {
+                return res.status(503).json({
+                    message: 'No OIDC Provider configured'
+                })
+            }
 
             if (oidc_client_id || oidc_client_scope || oidc_redirect_uri) {
                 if (!oidc_client_id || !oidc_client_scope || !oidc_redirect_uri) return res.status(400).json({
@@ -254,12 +309,15 @@ class OIDController {
                     let valid_redirect_uri = this.isAllowedRedirectUri(oidc_client, oidc_redirect_uri as string)
                     let state = randomUUID()
                     try {
-                        await OIDCStateDAO.insert(new OIDCStateModel({ state, clientId: oidc_client.client_id, redirectUri: this.normalizeRedirectUri(oidc_redirect_uri as string) }))
+                        await OIDCStateDAO.insert(new OIDCStateModel({ state, clientId: oidc_client.client_id, redirectUri: this.normalizeRedirectUri(oidc_redirect_uri as string), originalState: sp_state as string }))
                     } catch (e) {
                         return next(e)
                     }
                     if (valid_redirect_uri) {
-                        const oidc_url = `${authorization_endpoint}?response_type=code&client_id=${client_id}&scope=openid&redirect_uri=${CONFIG.DEPLOY_URL}/core/sso/oidc/backend/login&state=${state}`
+                        let oidc_url = `${provider.authorization_endpoint}?response_type=code&client_id=${provider.client_id}&scope=openid&redirect_uri=${CONFIG.DEPLOY_URL}/core/sso/oidc/backend/login&state=${state}`
+                        if (sp_nonce) {
+                            oidc_url += `&nonce=${sp_nonce}`
+                        }
                         return res.redirect(oidc_url)
                     }
                     return res.status(500).json({
@@ -272,9 +330,9 @@ class OIDController {
                 }
             }
 
-            const oidc_url = `${authorization_endpoint}?response_type=code&client_id=${client_id}&scope=openid&redirect_uri=${CONFIG.DEPLOY_URL}/core/sso/oidc/backend/login`
+            const oidc_url = `${provider.authorization_endpoint}?response_type=code&client_id=${provider.client_id}&scope=openid&redirect_uri=${CONFIG.DEPLOY_URL}/core/sso/oidc/backend/login`
 
-            if (firstEnrichedProvider) {
+            if (provider) {
                 return res.render('login', {
                     oidc_url
                 })
@@ -309,6 +367,9 @@ class OIDController {
                 }
                 const redirectUrl = new URL(redirect_uri)
                 redirectUrl.searchParams.set('code', `${code || ''}`)
+                if (stored.originalState) {
+                    redirectUrl.searchParams.set('state', stored.originalState)
+                }
                 return res.redirect(redirectUrl.toString())
             }
 
@@ -345,12 +406,17 @@ class OIDController {
 
     codeAuthFlow = async (code: string) => {
         try {
-            const keycloak_response = await axios(token_endpoint, {
+            const provider = await this.getPrimaryProvider()
+            if (!provider?.token_endpoint || !provider?.client_id || !provider?.client_secret) {
+                throw { status: 503, message: 'No active OIDC provider configured' }
+            }
+
+            const keycloak_response = await axios(provider.token_endpoint, {
                 method: 'POST',
                 data: {
                     grant_type: 'authorization_code',
-                    client_id,
-                    client_secret,
+                    client_id: provider.client_id,
+                    client_secret: provider.client_secret,
                     code,
                     redirect_uri: `${CONFIG.DEPLOY_URL}/core/sso/oidc/backend/login`
                 },
@@ -484,15 +550,16 @@ class OIDController {
                 // Non-fatal: continue SSO even if profile update fails
             }
 
-            // Synchronize groups/roles from token claim (BwSSOGroupVLBw or configured key)
+            // Synchronize groups/roles from token claim (OIDC_CLAIM_GROUPS)
             try {
+                logger.debug(`Resolved user for group sync: ${user?._id}`)
                 await syncGroupsAndMembershipsFromClaims(user._id, tokenGroupsRaw)
             } catch (e) {
                 // Non-fatal during login; log on server if VERBOSE
-                if (CONFIG.VERBOSE === 'true') console.error('Group sync error:', e)
+                logger.error('Group sync error:', e)
             }
 
-            return { user, access_token, refresh_token, expires_in, refresh_expires_in }
+            return { user, access_token, refresh_token, id_token, expires_in, refresh_expires_in }
         } catch (err) {
             throw err
         }
@@ -522,15 +589,16 @@ class OIDController {
                 message: 'Invalid client_secret'
             })
 
-            const { access_token, refresh_token, expires_in, refresh_expires_in } = await this.codeAuthFlow(code as string)
+            const { access_token, refresh_token, id_token, expires_in, refresh_expires_in } = await this.codeAuthFlow(code as string)
             return res.json({
                 access_token,
                 refresh_token,
+                id_token,
                 expires_in,
                 refresh_expires_in
             })
         } catch (err: any) {
-            console.error(err?.response?.data)
+            logger.error('OIDC token exchange failed', err?.response?.data)
             return next(err)
         }
     }

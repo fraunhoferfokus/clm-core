@@ -37,6 +37,9 @@ import BaseBackendDTO from '../BaseBackendDTO'
 import AdapterInterface from '../AdapterInterface'
 import RoleDAO from '../Role/RoleDAO'
 import { RoleModel } from '../Role/RoleModel'
+import { Logger } from '../../lib/utils/logger'
+
+const logger = new Logger({ name: 'RelationBDTO', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 
 
@@ -131,6 +134,44 @@ export class RelationBDTO {
         this.adapter = adapter
     }
 
+    private buildRelationsByFromId(relations: RelationModel[]) {
+        const relationsByFromId = new Map<string, RelationModel[]>()
+
+        for (const relation of relations) {
+            const key = `${relation.fromType}:${relation.fromId}`
+            const current = relationsByFromId.get(key)
+            if (current) current.push(relation)
+            else relationsByFromId.set(key, [relation])
+        }
+
+        return relationsByFromId
+    }
+
+    private cloneRole(role: RoleModel): RoleModel {
+        return new RoleModel({
+            ...role,
+            resourcePermissions: { ...role.resourcePermissions }
+        })
+    }
+
+    private getRelationVisitKey(relation: RelationModel) {
+        return `${relation.fromType}:${relation.fromId}->${relation.toType}:${relation.toId}`
+    }
+
+    private async getRoleById(roleId: string, cache: Map<string, Promise<RoleModel>>) {
+        if (!cache.has(roleId)) cache.set(roleId, RoleDAO.findById(roleId))
+        return cache.get(roleId)!
+    }
+
+    private updatePermissionMap(
+        permissionMap: { [key: string]: any },
+        key: string,
+        permission: number
+    ) {
+        const current = permissionMap[key]
+        if (current === undefined || current <= permission) permissionMap[key] = permission
+    }
+
 
     /**
      * Creates a new relation between two nodes
@@ -144,11 +185,12 @@ export class RelationBDTO {
     ): Promise<boolean> {
         try {
             if (checkRecursivity && await this.isRecursive(relation)) throw { message: `Recursive error for id: ${relation.toId} `, status: 400 }
-            return this.adapter.insert(relation).then(() => true)
-
+            logger.debug(`createRelationship: ${relation.fromId} (${relation.fromType}) -> ${relation.toId} (${relation.toType})`)
+            await this.adapter.insert(relation)
+            return true
         } catch (err) {
-
             throw err
+
         }
     }
 
@@ -170,35 +212,57 @@ export class RelationBDTO {
         return false
     }
 
-    private async geRecursiveParentsIds(relation: RelationModel, opt?: { preRelations?: RelationModel[] }) {
+    private async geRecursiveParentsIds(
+        relation: RelationModel,
+        opt?: { preRelations?: RelationModel[] },
+        visited = new Set<string>()
+    ) {
+
+        const visitKey = this.getRelationVisitKey(relation)
+        if (visited.has(visitKey)) return []
+        visited.add(visitKey)
 
         let ids: string[] = [relation.fromId]
-        const [allRelations] = await Promise.all([opt?.preRelations || RelationDAO.findAll()])
-        let resourceHasParent = allRelations.find((item) =>
+        const allRelations = opt?.preRelations || await RelationDAO.findAll()
+        const resourceHasParents = allRelations.filter((item) =>
             relation.fromType === item.fromType &&
             relation.toType === item.toType &&
             relation.fromId === item.toId &&
             item.fromType === item.toType
-        )!
-        if (resourceHasParent) ids = ids.concat(await this.geRecursiveParentsIds(resourceHasParent!))
-        return ids;
+        )
+
+        for (const resourceHasParent of resourceHasParents) {
+            ids = ids.concat(await this.geRecursiveParentsIds(resourceHasParent, { preRelations: allRelations }, visited))
+        }
+
+        return [...new Set(ids)];
     }
 
 
-    private async getRecursiveChildrenIds(relation: RelationModel, switchId = false, opt?: { preRelations?: RelationModel[] }) {
-        let ids: string[] = [switchId ? relation.toId : relation.fromId]
-        const [allRelations] = await Promise.all([opt?.preRelations || RelationDAO.findAll()])
-        let resourceHasChildren = allRelations.filter((item) => {
-            relation.fromType === item.fromType &&
-                relation.toType === item.toType &&
-                relation.fromId === (switchId ? relation.toId : relation.fromId)
-            item.fromType === item.toType
+    private async getRecursiveChildrenIds(
+        relation: RelationModel,
+        switchId = false,
+        opt?: { preRelations?: RelationModel[] },
+        visited = new Set<string>()
+    ) {
+        const visitKey = `${this.getRelationVisitKey(relation)}:${switchId ? 'to' : 'from'}`
+        if (visited.has(visitKey)) return []
+        visited.add(visitKey)
 
-        })
+        const currentId = switchId ? relation.toId : relation.fromId
+        let ids: string[] = [currentId]
+        const allRelations = opt?.preRelations || await RelationDAO.findAll()
+        const resourceHasChildren = allRelations.filter((item) =>
+            item.fromType === item.toType &&
+            item.fromType === relation.fromType &&
+            item.fromId === currentId
+        )
+
         for (const resourceHasChild of resourceHasChildren) {
-            ids = ids.concat(await this.getRecursiveChildrenIds(resourceHasChild, !switchId, { preRelations: opt?.preRelations }))
+            ids = ids.concat(await this.getRecursiveChildrenIds(resourceHasChild, !switchId, { preRelations: allRelations }, visited))
         }
-        return ids;
+
+        return [...new Set(ids)];
 
     }
 
@@ -233,7 +297,14 @@ export class RelationBDTO {
         userId: string,
         options: { preRelations?: RelationModel[] } = {}
     ) {
-        const [relations] = await Promise.all([options.preRelations || this.adapter.findAll()])
+        const relations = options.preRelations || await this.adapter.findAll()
+        const relationsByFromId = this.buildRelationsByFromId(relations)
+        const roleCache = new Map<string, Promise<RoleModel>>()
+        const groupRoleRelationByGroupId = new Map(
+            relations
+                .filter((relation) => relation.fromType === 'group' && relation.toType === 'role')
+                .map((relation) => [relation.fromId, relation] as const)
+        )
 
         const userIsInGroups = relations.filter((relation) =>
             relation.toId === userId
@@ -245,30 +316,24 @@ export class RelationBDTO {
 
         for (const userIsInGroup of userIsInGroups) {
             let groupId = userIsInGroup.fromId
-            let groupHasRoleRelation = relations.find((relation) => relation.fromId === groupId && relation.fromType === 'group' && relation.toType === 'role')
-            let role = await RoleDAO.findById(groupHasRoleRelation!.toId)
+            let groupHasRoleRelation = groupRoleRelationByGroupId.get(groupId)
+            if (!groupHasRoleRelation) continue
+            let role = this.cloneRole(await this.getRoleById(groupHasRoleRelation.toId, roleCache))
 
-            if (!globalyViewed[`${groupId}`]) globalyViewed[`${groupId}`] = role.resourcePermissions.group
-            if (!globalyViewed[`${userIsInGroup.toId}`]) globalyViewed[`${userIsInGroup.toId}`] = role.resourcePermissions.user
-            if (!globalyViewed[`${userIsInGroup._id}`]) globalyViewed[`${userIsInGroup._id}`] = role.resourcePermissions.user
+            this.updatePermissionMap(globalyViewed, `${groupId}`, role.resourcePermissions.group)
+            this.updatePermissionMap(globalyViewed, `${userIsInGroup.toId}`, role.resourcePermissions.user)
+            this.updatePermissionMap(globalyViewed, `${userIsInGroup._id}`, role.resourcePermissions.user)
 
-            let groupHasRessources = relations.filter(
-                (relation) =>
-                    relation.fromId === groupId
-                    && relation.fromType === 'group'
-                    && relation.toId !== userIsInGroup.toId
+            let groupHasRessources = (relationsByFromId.get(`group:${groupId}`) || []).filter(
+                (relation) => relation.toId !== userIsInGroup.toId && relation.toType !== 'role'
             )
 
             for (const resource of groupHasRessources) {
                 let crudPermission = role.resourcePermissions[resource.toType as keyof typeof role.resourcePermissions]
-                let relationViewed = globalyViewed[`${resource._id}`]
-                let resourceViewed = globalyViewed[`${resource.toId}`]
+                this.updatePermissionMap(globalyViewed, `${resource._id}`, crudPermission)
+                this.updatePermissionMap(globalyViewed, `${resource.toId}`, crudPermission)
 
-                if (!relationViewed || (relationViewed && globalyViewed[resource._id] <= crudPermission)) globalyViewed[`${resource._id}`] = crudPermission
-                if (!resourceViewed ||
-                    (resourceViewed && globalyViewed[resource.toId] <= crudPermission)) globalyViewed[`${resource.toId}`] = crudPermission
-
-                await this.groupHasRessources(resource, relations, globalyViewed, role)
+                await this.groupHasRessources(resource, relationsByFromId, globalyViewed, role, roleCache, new Set())
             }
         }
         return globalyViewed
@@ -277,21 +342,25 @@ export class RelationBDTO {
     private async groupHasRessources
         (
             relation: RelationModel,
-            relations: RelationModel[],
+            relationsByFromId: Map<string, RelationModel[]>,
             globalyViewed: { [key: string]: any },
-            role: RoleModel
+            role: RoleModel,
+            roleCache: Map<string, Promise<RoleModel>>,
+            visited: Set<string>
         ) {
-        let { _id: relationId, fromType, toType, fromId, toId } = relation
+        const visitKey = this.getRelationVisitKey(relation)
+        if (visited.has(visitKey)) return globalyViewed
+        visited.add(visitKey)
+
+        let { toType, toId } = relation
 
         if (toType === 'role') return
 
-        let resourceHasResources = relations.filter((item) =>
-            item.fromId === toId
-        )
+        let resourceHasResources = relationsByFromId.get(`${toType}:${toId}`) || []
 
         let roleRelation = resourceHasResources.find((item) => item.toType === 'role')
         if (roleRelation) {
-            let secondRole = await RoleDAO.findById(roleRelation.toId)
+            let secondRole = this.cloneRole(await this.getRoleById(roleRelation.toId, roleCache))
             if (role.lineage) {
                 for (let key in secondRole.resourcePermissions) {
                     let key_ = key as keyof typeof role.resourcePermissions
@@ -305,14 +374,9 @@ export class RelationBDTO {
         for (const resource of resourceHasResources) {
             if (resource.toType === 'role') continue
             let crudPermission = role.resourcePermissions[resource.toType as keyof typeof role.resourcePermissions]
-            let relationViewed = globalyViewed[`${resource._id}`]
-            let resourceViewed = globalyViewed[`${resource.toId}`]
-            if (!globalyViewed[`${resource._id}`]
-                || (relationViewed && globalyViewed[resource._id] <= crudPermission)) globalyViewed[`${resource._id}`] = crudPermission
-            if (!globalyViewed[`${resource.toId}`]
-                || (resourceViewed && globalyViewed[resource.toId] <= crudPermission)
-            ) globalyViewed[`${resource.toId}`] = crudPermission
-            await this.groupHasRessources(resource, relations, globalyViewed, role)
+            this.updatePermissionMap(globalyViewed, `${resource._id}`, crudPermission)
+            this.updatePermissionMap(globalyViewed, `${resource.toId}`, crudPermission)
+            await this.groupHasRessources(resource, relationsByFromId, globalyViewed, this.cloneRole(role), roleCache, new Set(visited))
         }
         return globalyViewed
     }
@@ -334,7 +398,7 @@ export class RelationBDTO {
 
     /**
      * Get all the resources that the user has access to
-     * 
+     *
      */
     async getAllGroupRelations() {
         const relations = await this.adapter.findAll()
@@ -342,14 +406,31 @@ export class RelationBDTO {
     }
 
     /**
+     * Get the raw group-membership relations for a user (group -\> user), including relationType.
+     * Unlike {@link getUsersGroups}, this returns the actual relation records instead of a flattened
+     * permission view, so callers can distinguish who/what created each membership.
+     * @param userId - The id of the user
+     * @returns
+     */
+    async getUserGroupRelations(userId: string): Promise<RelationModel[]> {
+        const relations = await this.adapter.findAll()
+        return relations.filter((relation) =>
+            relation.fromType === 'group' && relation.toType === 'user' && relation.toId === userId
+        )
+    }
+
+    /**
      * Add a user to a group
      * @param userId - The id of the user
      * @param targetGroupId - The id of the group
-     * @returns 
+     * @param relationType - Optional marker for who/what created this membership (e.g. 'oidc-managed').
+     *        Defaults to RelationModel's own default ('have') when omitted.
+     * @returns
      */
     async addUserToGroup(
         userId: string,
-        targetGroupId: string
+        targetGroupId: string,
+        relationType?: string
     ) {
         let user: UserModel;
 
@@ -376,7 +457,13 @@ export class RelationBDTO {
         return Promise.all([]).then(() =>
             Promise.all([
                 // this.createRelationship(new RelationModel({ fromId: userId, fromType: 'user', toId: targetGroupId, toType: 'group' }), true),
-                this.createRelationship(new RelationModel({ fromId: targetGroupId, fromType: 'group', toId: userId, toType: 'user' }), true)
+                this.createRelationship(new RelationModel({
+                    fromId: targetGroupId, fromType: 'group', toId: userId, toType: 'user',
+                    ...(relationType ? { relationType } : {})
+                }), true).catch((e) => {
+                    // Re-throw so callers see the error; the original lost this silently.
+                    throw e
+                })
             ])
         )
 
@@ -516,8 +603,8 @@ export class RelationBDTO {
      * @param userId - The id of the user
      * @returns 
      */
-    async getUsersPermissions(userId: string) {
-        const allRelations = await this.findAll()
+    async getUsersPermissions(userId: string, options: PreFetchOptions = {}) {
+        const allRelations = options.preRelations || await this.findAll()
         const usersPermissions = await this.usersPermissionMap(userId, { preRelations: allRelations })
         return usersPermissions
     }

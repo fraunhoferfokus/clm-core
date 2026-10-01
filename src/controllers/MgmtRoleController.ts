@@ -27,26 +27,16 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
-import { Request, Response, NextFunction, Handler } from "express"
-import { ParamsDictionary } from "express-serve-static-core"
-import { ParsedQs } from "qs"
 import { AuthGuard } from "../handlers/AuthGuard"
 import RoleDAO from "../models/Role/RoleDAO"
 import RoleFrontendDTO from "../models/Role/RoleFDTO"
 import { RoleModel } from "../models/Role/RoleModel"
 import BaseModelController from "./BaseModelController"
-import { checkSchema } from "express-validator"
 import { createRoleSchemaValidator, deleteRoleSchemaValidator, updateRoleSchemaValidator } from "../validationSchemas/RoleValidation"
 
-class MgmtRoleController extends BaseModelController<typeof RoleDAO, RoleModel, RoleFrontendDTO>{
-
-
-}
+class MgmtRoleController extends BaseModelController<typeof RoleDAO, RoleModel, RoleFrontendDTO> {}
 const controller = new MgmtRoleController(RoleDAO, RoleModel, RoleFrontendDTO)
 controller.removeRoute('/', ['delete'])
-
-
-
 
 
 /**

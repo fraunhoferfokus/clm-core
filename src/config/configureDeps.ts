@@ -36,8 +36,11 @@ import OIDCClientDAO from "../models/OIDCClient/OIDCClientDAO"
 import OIDCClientModel from "../models/OIDCClient/OIDCClientModel"
 import OIDCProviderDAO from "../models/OIDCProvider/OIDCProviderDAO"
 import OIDCProviderModel from "../models/OIDCProvider/OIDCProviderModel"
+import { Logger } from "../lib/utils/logger"
 import { CONFIG } from "./config"
 //create Admin User if not exists
+
+const logger = new Logger({ name: 'configureDeps', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 export default async function configureDependencies(app: any, excludedPaths: string[]) {
     const rootUser = CONFIG.CLM_ROOT_USER
@@ -163,7 +166,7 @@ export default async function configureDependencies(app: any, excludedPaths: str
         // This keeps deployments working even if only emails are provided.
         const password = (admin?.password || admin?.adminPassword || rootPassword || '').toString()
         if (!password) {
-            console.warn('[BOOTSTRAP] Skipping admin user without password:', email)
+            logger.warn('Skipping admin user without password:', email)
             continue
         }
 
@@ -186,7 +189,7 @@ export default async function configureDependencies(app: any, excludedPaths: str
     try {
         const existingProviders = await OIDCProviderDAO.findAll()
         if (existingProviders.length === 0 && CONFIG.OIDC_PROVIDERS && CONFIG.OIDC_PROVIDERS.length > 0) {
-            console.log('Migrating OIDC Providers from env to database...')
+            logger.info('Migrating OIDC Providers from env to database...')
             for (const provider of CONFIG.OIDC_PROVIDERS) {
                 await OIDCProviderDAO.insert(new OIDCProviderModel({
                     displayName: provider.displayName || 'Migrated Provider',
@@ -201,17 +204,17 @@ export default async function configureDependencies(app: any, excludedPaths: str
                     active: true
                 }))
             }
-            console.log(`Migrated ${CONFIG.OIDC_PROVIDERS.length} OIDC Provider(s) to database`)
+            logger.info(`Migrated ${CONFIG.OIDC_PROVIDERS.length} OIDC Provider(s) to database`)
         }
     } catch (err) {
-        console.error('Failed to migrate OIDC Providers from env to DB:', err)
+        logger.error('Failed to migrate OIDC Providers from env to DB:', err)
     }
 
     // Migrate OIDC Clients from env to DB if not already present
     try {
         const existingClients = await OIDCClientDAO.findAll()
         if (existingClients.length === 0 && CONFIG.ODIC_CLIENTS && CONFIG.ODIC_CLIENTS.length > 0) {
-            console.log('Migrating OIDC Clients from env to database...')
+            logger.info('Migrating OIDC Clients from env to database...')
             for (const client of CONFIG.ODIC_CLIENTS) {
                 await OIDCClientDAO.insert(new OIDCClientModel({
                     client_id: client.client_id,
@@ -222,10 +225,10 @@ export default async function configureDependencies(app: any, excludedPaths: str
                     active: true
                 }))
             }
-            console.log(`Migrated ${CONFIG.ODIC_CLIENTS.length} OIDC Client(s) to database`)
+            logger.info(`Migrated ${CONFIG.ODIC_CLIENTS.length} OIDC Client(s) to database`)
         }
     } catch (err) {
-        console.error('Failed to migrate OIDC Clients from env to DB:', err)
+        logger.error('Failed to migrate OIDC Clients from env to DB:', err)
     }
 
 }

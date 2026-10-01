@@ -12,7 +12,7 @@ html
     - var href_verification = url;
     p Hallo #{firstname} #{lastname},
     p
-    p Vielen Dank für die Erstellung des Accounts am KI-Demonstrator.
+    p Vielen Dank für die Erstellung Ihres Accounts.
     p Bitte bestätigen Sie Ihre E-Mail Adresse, um die Anmeldung abzuschliessen.
     
     a(href=href_verification) Meine E-Mail Adresse bestätigen
@@ -20,5 +20,5 @@ html
     p
    
   footer
-    - var href_imprint = imprint;
-    a(href='https://bwcoretech.fokus.fraunhofer.de/app/#/auth/login') Impressum / Imprint
+    if imprint
+      a(href=imprint) Impressum / Imprint

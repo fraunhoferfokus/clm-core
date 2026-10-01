@@ -32,6 +32,12 @@ interface OIDCProviderLike {
     authorization_endpoint?: string
 }
 
+function normalizeProviders<T>(providers: T[] | T | null | undefined): T[] {
+    if (Array.isArray(providers)) return providers
+    if (!providers) return []
+    return [providers]
+}
+
 function normalizeIssuer(value?: string): string | undefined {
     if (!value || typeof value !== 'string') return undefined
     try {
@@ -64,6 +70,6 @@ export function providerMatchesIssuer(provider: OIDCProviderLike, issuer?: strin
     return trustedIssuers.includes(normalizedIssuer)
 }
 
-export function findTrustedProviderByIssuer<T extends OIDCProviderLike>(providers: T[], issuer?: string): T | undefined {
-    return providers.find((provider) => providerMatchesIssuer(provider, issuer))
+export function findTrustedProviderByIssuer<T extends OIDCProviderLike>(providers: T[] | T | null | undefined, issuer?: string): T | undefined {
+    return normalizeProviders(providers).find((provider) => providerMatchesIssuer(provider, issuer))
 }

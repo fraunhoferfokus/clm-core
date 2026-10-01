@@ -28,6 +28,9 @@
  * -----------------------------------------------------------------------------
  */
 import { randomBytes } from 'crypto'
+import { Logger } from '../lib/utils/logger'
+
+const logger = new Logger({ name: 'config', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 function readEnv(name: string, fallback = ''): string {
     const value = process.env[name]
@@ -40,13 +43,17 @@ function readRuntimeSecret(name: string): string {
 
     // Generate a per-process secret instead of falling back to a public default.
     const generatedSecret = randomBytes(32).toString('hex')
-    console.warn(`[CONFIG] ${name} is not set. Using a runtime-generated secret; configure it explicitly for stable deployments.`)
+    logger.warn(`${name} is not set. Using a runtime-generated secret; configure it explicitly for stable deployments.`)
     return generatedSecret
 }
 
 const tokenSecret = readRuntimeSecret('TOKEN_SECRET')
 const apiKey = readRuntimeSecret('CLM_API_KEY')
-const refreshTokenSecret = readEnv('REFRESH_TOKEN_SECRET').trim() || readRuntimeSecret('REFRESH_TOKEN_SECRET')
+// REFRESH_TOKEN_SECRET: fall back to TOKEN_SECRET when not configured explicitly.
+// (Mirrors VERIFICATION_TOKEN_SECRET below.) Without this fallback every pod
+// generated its own random refresh secret, so refresh tokens issued by replica A
+// were rejected by replica B -> "/authentication/refresh" -> "Token not valid or expired".
+const refreshTokenSecret = readEnv('REFRESH_TOKEN_SECRET').trim() || tokenSecret
 const verificationTokenSecret = readEnv('VERIFICATION_TOKEN_SECRET').trim() || tokenSecret
 
 export const CONFIG = {
@@ -77,13 +84,15 @@ export const CONFIG = {
             return parsed
         } catch (err) {
             // Keep startup resilient: invalid JSON should not crash the service.
-            console.warn('[CONFIG] Invalid CLM_ADMIN_USERS JSON; ignoring:', err)
+            logger.warn('Invalid CLM_ADMIN_USERS JSON; ignoring:', err)
             return []
         }
     })(),
     CLM_API_KEY: apiKey,
     DEPLOY_URL: process.env.DEPLOY_URL || 'http://localhost/api',
     SMTP_FROM: process.env.SMTP_FROM || '',
+    // Optional imprint/legal notice link rendered in the footer of outgoing e-mails.
+    IMPRINT_URL: process.env.IMPRINT_URL || '',
     SMTP_HOST: process.env.SMTP_HOST || '',
     SMTP_PORT: process.env.SMTP_PORT || '',
     SMTP_USER: process.env.SMTP_USER || '',
@@ -105,6 +114,12 @@ export const CONFIG = {
         if (raw === undefined || raw === null || raw === '') return false
         return /^(1|true|yes|on)$/i.test(raw.trim())
     })(),
+    // Allow disabling auth endpoint rate limiting for trusted environments or debugging.
+    DISABLE_AUTH_RATE_LIMIT: (() => {
+        const raw = process.env.DISABLE_AUTH_RATE_LIMIT
+        if (raw === undefined || raw === null || raw === '') return false
+        return /^(1|true|yes|on)$/i.test(raw.trim())
+    })(),
 
     // OIDC claim mapping (allows different IAM attribute naming). Defaults follow common OpenID fields and provided IAM schema
     OIDC_CLAIM_SUB: process.env.OIDC_CLAIM_SUB || 'sub',
@@ -112,9 +127,15 @@ export const CONFIG = {
     OIDC_CLAIM_GIVEN_NAME: process.env.OIDC_CLAIM_GIVEN_NAME || 'given_name',
     OIDC_CLAIM_FAMILY_NAME: process.env.OIDC_CLAIM_FAMILY_NAME || 'family_name',
     OIDC_CLAIM_TITLE: process.env.OIDC_CLAIM_TITLE || 'title',
-    OIDC_CLAIM_PERSONNEL_NR: process.env.OIDC_CLAIM_PERSONNEL_NR || 'BWPersPERNR',
-    OIDC_CLAIM_TRAINING_ID: process.env.OIDC_CLAIM_TRAINING_ID || 'VLBwAusbildungsID',
-    OIDC_CLAIM_GROUPS: process.env.OIDC_CLAIM_GROUPS || 'BwSSOGroupVLBw',
+    OIDC_CLAIM_PERSONNEL_NR: process.env.OIDC_CLAIM_PERSONNEL_NR || 'personnel_number',
+    // Preferred identity claim; falls back to the subject claim when absent in the token.
+    OIDC_CLAIM_TRAINING_ID: process.env.OIDC_CLAIM_TRAINING_ID || 'preferred_identity_id',
+    OIDC_CLAIM_GROUPS: process.env.OIDC_CLAIM_GROUPS || 'groups',
+
+    // How the OIDC groups claim value is formatted by the IdP.
+    // - "comma" (default): plain comma-separated string, e.g. "Staff, Portal-Admin, 12345_Learner"
+    // - "json_array": stringified JSON array, e.g. '["Staff_Learner", "Guests"]'
+    OIDC_GROUPS_FORMAT: process.env.OIDC_GROUPS_FORMAT || 'comma',
 
     // Group parsing and role mapping
     OIDC_GROUP_ROLE_DELIMITER: process.env.OIDC_GROUP_ROLE_DELIMITER || '_',

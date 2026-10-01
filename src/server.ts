@@ -29,15 +29,34 @@
  */
 import dotenv from 'dotenv'
 dotenv.config()
+
+// --- Process-level safety net ----------------------------------------------------
+// No request should ever be able to crash the pod. Express cannot see exceptions
+// thrown from async handlers that escape `next(err)`, so we log them and keep
+// the process alive instead of letting Node terminate (crash-loop in k8s).
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[unhandledRejection]', reason)
+})
+process.on('uncaughtException', (err) => {
+    console.error('[uncaughtException]', err)
+})
+// ---------------------------------------------------------------------------------
+
+import { Logger, LoggerOptions, LoggerDefaults } from './lib/utils/logger';
 import cors from 'cors'
 import express from 'express'
 import path from 'path'
-import { CONFIG } from './src/config/config'
-import configureDependencies from './src/config/configureDeps'
-import EntryPointController from './src/controllers/EntryPointController'
-import errHandler from './src/handlers/ErrorHandler'
-import pool from './src/models/pgPool'
+import { CONFIG } from './config/config'
+import configureDependencies from './config/configureDeps'
+import EntryPointController from './controllers/EntryPointController'
+import errHandler from './handlers/ErrorHandler'
+import pool from './models/pgPool'
 export const ROOT_DIR = process.cwd()
+
+const logger = new Logger({
+  name: 'CLM-Core',
+  level: (process.env.LOG_LEVEL as any) || 'info',
+});
 
 function createSlidingWindowRateLimiter(windowMs: number, maxRequests: number, matches: (req: express.Request) => boolean): express.Handler {
     const hits = new Map<string, number[]>()
@@ -75,6 +94,18 @@ app.use(function (req, res, next) {
     );
     next();
 });
+/** Measure and log API processing time */
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  const originalPath = req.path;
+  res.on('finish', () => {
+    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+    logger.info(
+      `${req.method} ${originalPath} ${res.statusCode} ${durationMs.toFixed(2)}ms`
+    );
+  });
+  next();
+});
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
 
@@ -91,20 +122,23 @@ const EXCLUDED_PATHS = [
     `${basePath}/sso/oidc/access_token_by_code`,
     `${basePath}/sso/oidc/broker/logout`,
     `${basePath}/sso/oidc/broker/logout/redirect`,
+    `${basePath}/sso/oidc/.well-known/openid-configuration`,
     `/health`
 ]
 
 // Limit brute-force attempts on authentication and token exchange endpoints.
-app.use(createSlidingWindowRateLimiter(15 * 60 * 1000, 100, (req) => {
-    const authPaths = new Set([
-        `${basePath}/authentication`,
-        `${basePath}/authentication/refresh`,
-        `${basePath}/sso/oidc`,
-        `${basePath}/sso/oidc/backend/login`,
-        `${basePath}/sso/oidc/access_token_by_code`
-    ])
-    return authPaths.has(req.path)
-}))
+if (!CONFIG.DISABLE_AUTH_RATE_LIMIT) {
+    app.use(createSlidingWindowRateLimiter(15 * 60 * 1000, 100, (req) => {
+        const authPaths = new Set([
+            `${basePath}/authentication`,
+            `${basePath}/authentication/refresh`,
+            `${basePath}/sso/oidc`,
+            `${basePath}/sso/oidc/backend/login`,
+            `${basePath}/sso/oidc/access_token_by_code`
+        ])
+        return authPaths.has(req.path)
+    }))
+}
 
 app.get('/health', (req, res) => res.send('OK'))
 app.get('/live', async (req, res) => {
@@ -135,10 +169,10 @@ app.use(errHandler);
 
 configureDependencies(app, EXCLUDED_PATHS).then(() =>
     app.listen(PORT, () => {
-        console.info(`Listening for core requests on port ${PORT}`)
+        logger.info(`Listening for core requests on port ${PORT}`)
     })
 ).catch((err) => {
-    console.error(JSON.stringify(err))
+    logger.error(JSON.stringify(err))
 })
 
 

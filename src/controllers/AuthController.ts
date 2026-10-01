@@ -38,7 +38,10 @@ import axios from 'axios';
 import { findTrustedProviderByIssuer } from '../services/OIDCIssuerTrust';
 import { verifyExternalToken } from '../services/jwksService';
 import { syncGroupsAndMembershipsFromClaims } from '../services/OIDCGroupSyncService';
+import { Logger } from '../lib/utils/logger';
 const OIDC_PROVIDERS = CONFIG.OIDC_PROVIDERS
+
+const logger = new Logger({ name: 'AuthController', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 
 const basePath = CONFIG.BASE_PATH || '/core'
@@ -146,11 +149,17 @@ class AuthController {
         const token = header && header.toLowerCase().trim() !== '' && header !== 'undefined' ? header : null;
         if (!token) return next({ message: 'not valid x-refresh-token header!', status: 401 })
 
-        let decodedJWT: any = jwt.decode(token)
-        let iss = decodedJWT.iss
         try {
+            // jwt.decode() returns null for malformed/non-JWT strings. Guard explicitly
+            // so a bad token never crashes the process with an unhandled rejection.
+            const decodedJWT: any = jwt.decode(token)
+            if (!decodedJWT || typeof decodedJWT !== 'object') {
+                return next({ message: 'Malformed refresh token', status: 401 })
+            }
+            const iss = decodedJWT.iss
             if (iss !== CONFIG.DEPLOY_URL) {
-                const provider = findTrustedProviderByIssuer(OIDC_PROVIDERS as any[], iss) as any
+            const { getEnrichedProviders } = await import('./OIDCController')
+            const provider = findTrustedProviderByIssuer(await getEnrichedProviders(), iss) as any
                 if (!provider) return next({ message: `Invalid issuer: ${iss}! `, status: 401 });
                 // get userinformation from provider
 
@@ -193,9 +202,9 @@ class AuthController {
                             }
                         }
                     }
-                } catch (e) {
+                } catch (err) {
                     // Non-fatal; continue returning refreshed tokens
-                    if (CONFIG.VERBOSE === 'true') console.error('Refresh-time group sync error:', e)
+                    logger.error('Refresh-time group sync error:', err)
                 }
                 return res.json({
                     access_token: idp_access_token,

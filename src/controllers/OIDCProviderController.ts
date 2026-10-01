@@ -31,6 +31,9 @@ import express from 'express'
 import { AuthGuard } from '../handlers/AuthGuard'
 import OIDCProviderDAO from '../models/OIDCProvider/OIDCProviderDAO'
 import OIDCProviderModel from '../models/OIDCProvider/OIDCProviderModel'
+import { Logger } from '../lib/utils/logger'
+
+const logger = new Logger({ name: 'OIDCProviderController', level: (process.env.LOG_LEVEL as any) || 'info' })
 
 /**
  * Controller for managing OIDC providers in the database
@@ -126,8 +129,8 @@ class OIDCProviderController {
             try {
                 const { reloadProviders } = await import('./OIDCController')
                 await reloadProviders()
-            } catch (e) {
-                console.warn('Could not reload OIDC providers in OIDCController')
+            } catch (err) {
+                logger.warn('Could not reload OIDC providers in OIDCController', err)
             }
             
             return res.status(201).json(created)
@@ -183,8 +186,8 @@ class OIDCProviderController {
             try {
                 const { reloadProviders } = await import('./OIDCController')
                 await reloadProviders()
-            } catch (e) {
-                console.warn('Could not reload OIDC providers in OIDCController')
+            } catch (err) {
+                logger.warn('Could not reload OIDC providers in OIDCController', err)
             }
             
             return res.json(result)
@@ -206,8 +209,8 @@ class OIDCProviderController {
             try {
                 const { reloadProviders } = await import('./OIDCController')
                 await reloadProviders()
-            } catch (e) {
-                console.warn('Could not reload OIDC providers in OIDCController')
+            } catch (err) {
+                logger.warn('Could not reload OIDC providers in OIDCController', err)
             }
             
             return res.status(204).send()
