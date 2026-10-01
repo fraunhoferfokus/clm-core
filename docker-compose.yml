@@ -1,0 +1,39 @@
+# Local quick start: PostgreSQL + clm-core
+#   docker compose up --build
+# Swagger UI / OpenAPI JSON: http://localhost:3001/core/swagger
+# Do not use these credentials outside of local development.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: clm
+      POSTGRES_USER: clm
+      POSTGRES_PASSWORD: clm-dev-password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clm -d clm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  clm-core:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DEPLOY_URL: http://localhost:3001
+      BASE_PATH: /core
+      PG_CONFIG: db|5432|clm|clm|clm-dev-password|8
+      CLM_ROOT_USER: admin@example.org
+      CLM_ROOT_PASSWORD: change-me-admin
+      TOKEN_SECRET: change-me-token-secret-at-least-32-chars
+      CLM_API_KEY: change-me-api-key
+      LOG_LEVEL: info
+
+volumes:
+  pgdata:

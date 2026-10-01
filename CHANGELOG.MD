@@ -17,6 +17,8 @@
 * nodemailer 10.0.13, brace-expansion and fast-uri updates (`npm audit`: 0 vulnerabilities).
 ### Fixes
 * Errors thrown in controller pre-hooks reach the error handler instead of leaving the request hanging (e.g. updating a super-admin without `oldPassword`).
+* E-mail templates were resolved as `undefined/views` because of a circular import; registration mails failed and the request did not respond.
+* `npm run dev` uses `tsx` (`ts-node` was no longer installed).
 * Re-added `ejs`, which is required to render the SSO login and success pages.
 * Docker image ships `pages/` and `views/` (SSO pages and e-mail templates) and defines a `HEALTHCHECK`.
 * E-mail templates: imprint link is configurable via `IMPRINT_URL`.
