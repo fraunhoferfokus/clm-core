@@ -177,6 +177,16 @@ class OIDController {
             .includes(normalizedCandidate)
     }
 
+    private buildAuthorizationUrl(provider: any, extraParams: Record<string, string> = {}) {
+        const url = new URL(provider.authorization_endpoint)
+        url.searchParams.set('response_type', 'code')
+        url.searchParams.set('client_id', provider.client_id)
+        url.searchParams.set('scope', 'openid')
+        url.searchParams.set('redirect_uri', `${CONFIG.DEPLOY_URL}/core/sso/oidc/backend/login`)
+        for (const [key, value] of Object.entries(extraParams)) url.searchParams.set(key, value)
+        return url.toString()
+    }
+
     private async getPrimaryProvider() {
         const providers = await getEnrichedProviders()
         return providers[0]
@@ -278,7 +288,6 @@ class OIDController {
                 subject_types_supported: ['public'],
                 id_token_signing_alg_values_supported: ['RS256'],
                 grant_types_supported: ['authorization_code'],
-                code_challenge_methods_supported: ['S256'],
                 scopes_supported: ['openid'],
                 token_endpoint_auth_methods_supported: ['client_secret_post']
             })
@@ -309,15 +318,17 @@ class OIDController {
                     let valid_redirect_uri = this.isAllowedRedirectUri(oidc_client, oidc_redirect_uri as string)
                     let state = randomUUID()
                     try {
-                        await OIDCStateDAO.insert(new OIDCStateModel({ state, clientId: oidc_client.client_id, redirectUri: this.normalizeRedirectUri(oidc_redirect_uri as string), originalState: sp_state as string }))
+                        await OIDCStateDAO.insert(new OIDCStateModel({ state, clientId: oidc_client.client_id, redirectUri: this.normalizeRedirectUri(oidc_redirect_uri as string), originalState: typeof sp_state === 'string' ? sp_state : undefined }))
                     } catch (e) {
                         return next(e)
                     }
                     if (valid_redirect_uri) {
-                        let oidc_url = `${provider.authorization_endpoint}?response_type=code&client_id=${provider.client_id}&scope=openid&redirect_uri=${CONFIG.DEPLOY_URL}/core/sso/oidc/backend/login&state=${state}`
-                        if (sp_nonce) {
-                            oidc_url += `&nonce=${sp_nonce}`
-                        }
+                        // Build the query with URLSearchParams so caller-supplied values (nonce) cannot inject
+                        // additional authorize parameters such as prompt or redirect_uri.
+                        const oidc_url = this.buildAuthorizationUrl(provider, {
+                            state,
+                            ...(typeof sp_nonce === 'string' && sp_nonce ? { nonce: sp_nonce } : {})
+                        })
                         return res.redirect(oidc_url)
                     }
                     return res.status(500).json({
@@ -330,7 +341,7 @@ class OIDController {
                 }
             }
 
-            const oidc_url = `${provider.authorization_endpoint}?response_type=code&client_id=${provider.client_id}&scope=openid&redirect_uri=${CONFIG.DEPLOY_URL}/core/sso/oidc/backend/login`
+            const oidc_url = this.buildAuthorizationUrl(provider)
 
             if (provider) {
                 return res.render('login', {
@@ -452,12 +463,17 @@ class OIDController {
             const tokenFamily = (claims?.[claimKey.familyName] ?? '') as string
             const tokenGroupsRaw = (claims?.[claimKey.groups] ?? '') as string
 
-            // Verbesserte User-Ermittlung:
-            // 1. Versuche anhand identityId zu finden
-            // 2. Falls nicht gefunden: versuche anhand email/_id (wir nehmen subject als Email/_id Surrogat) zu finden
-            // 3. Falls gefunden aber identityId fehlt -> update setzen
-            // 4. Falls gar nicht vorhanden -> neu anlegen
-            // 5. Race-Condition (Unique 23505) beim Insert abfangen und danach erneut laden
+            // Fail closed: without a verified subject the attribute lookups below would match arbitrary users.
+            if (typeof identityId !== 'string' || !identityId || typeof subject !== 'string' || !subject) {
+                throw { status: 401, message: 'IdP token does not contain a verifiable subject' }
+            }
+
+            // User resolution:
+            // 1. Look up by identityId
+            // 2. Otherwise look up by email/_id (subject is used as email/_id surrogate)
+            // 3. If found without identityId -> set it
+            // 4. If not found at all -> create the user
+            // 5. Handle the unique-violation race (23505) on insert and reload
 
             // Try to find user by identityId (preferred)
             let user: UserModel | undefined = (await UserDAO.findByAttributes({ identityId }))[0]

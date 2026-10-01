@@ -35,7 +35,7 @@ import UserDAO from "../models/User/UserDAO";
 import UserFDTO from "../models/User/UserFDTO";
 import { UserModel } from "../models/User/UserModel";
 import PasswordService from "../services/PasswordService";
-import { createUserValidation, updateUserValidation } from "../validationSchemas/UserValidation";
+import { createUserValidation, stripProtectedUserFields, updateUserValidation } from "../validationSchemas/UserValidation";
 import BaseModelController from "./BaseModelController";
 const basePath = CONFIG.BASE_PATH || '/core'
 
@@ -68,7 +68,7 @@ class UserMGMTController extends BaseModelController<typeof UserDAO, UserModel, 
         return super.updateOneDocument(
             async (req, res, next) => {
                 const user = await UserDAO.findById(req.params.id)
-                if (user.isSuperAdmin && !await PasswordService.verifyPassword(req.body.oldPassword, user.password)) {
+                if (user.isSuperAdmin && (typeof req.body?.oldPassword !== 'string' || !await PasswordService.verifyPassword(req.body.oldPassword, user.password))) {
                     next({ message: "Need old password of super-admin", status: 400 })
                     return { proceed: false }
                 }
@@ -185,7 +185,7 @@ controller.router.get('/', AuthGuard.permissionChecker('user'))
  *                 $ref: '#/components/schemas/user'
  */
 
-controller.router.post('/', AuthGuard.permissionChecker('user'), createUserValidation)
+controller.router.post('/', AuthGuard.permissionChecker('user'), stripProtectedUserFields, createUserValidation)
 
 /**
  * @openapi
@@ -209,8 +209,7 @@ controller.router.post('/', AuthGuard.permissionChecker('user'), createUserValid
  *         204:
  *           description: Successfully deleted a user
  */
-controller.router.delete('/:id', AuthGuard.permissionChecker('user'),
-)
+controller.router.delete('/:id', AuthGuard.permissionChecker('user', [{ in: 'path', name: 'id' }]))
 // controller.router.get('/relations', AuthHandler.requireMinimumRole('ADMIN'), controller.getUserRelations())
 
 
@@ -295,8 +294,10 @@ controller.router.delete('/:id', AuthGuard.permissionChecker('user'),
  *                 items:
  *                   $ref: '#/components/schemas/user'
  */
-controller.router.patch('/:id', AuthGuard.permissionChecker('user'), updateUserValidation)
-controller.router.put('/:id', AuthGuard.permissionChecker('user'), updateUserValidation)
+// Target checks: the caller needs the CRUD bit on the addressed user, not just on any user.
+controller.router.get('/:id', AuthGuard.permissionChecker('user', [{ in: 'path', name: 'id' }]))
+controller.router.patch('/:id', AuthGuard.permissionChecker('user', [{ in: 'path', name: 'id' }]), stripProtectedUserFields, updateUserValidation)
+controller.router.put('/:id', AuthGuard.permissionChecker('user', [{ in: 'path', name: 'id' }]), stripProtectedUserFields, updateUserValidation)
 
 controller.activateStandardRouting();
 export default controller;

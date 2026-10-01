@@ -97,8 +97,12 @@ export default async function configureDependencies(app: any, excludedPaths: str
             user: 14,
             mcp_server: 1,
         },
-        strength: 0
+        strength: 0,
+        immutable: true
     }))
+    // Older installations created the Self role as mutable. Every user is bound to it through their
+    // personal group, so a single PATCH on this role would change the permissions of all users.
+    if (!selfRole.immutable) selfRole = await RoleDAO.updateById(selfRole._id, { immutable: true } as RoleModel)
 
     let learnerRole = (await RoleDAO.findByAttributes({ displayName: "Learner" }))[0]
     if (!learnerRole) learnerRole = await RoleDAO.insert(new RoleModel({

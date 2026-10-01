@@ -97,6 +97,7 @@ export const CONFIG = {
     SMTP_PORT: process.env.SMTP_PORT || '',
     SMTP_USER: process.env.SMTP_USER || '',
     SMTP_PASS: process.env.SMTP_PASS || '',
+    SMTP_ALLOW_INSECURE_TLS: /^(1|true|yes|on)$/i.test(process.env.SMTP_ALLOW_INSECURE_TLS || ''),
     VERBOSE: process.env.VERBOSE || 'false',
     DISABLE_ERR_RESPONSE: process.env.DISABLE_ERR_RESPONSE || false,
     TOKEN_SECRET: tokenSecret,

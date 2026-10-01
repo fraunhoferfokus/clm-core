@@ -85,6 +85,13 @@ export interface TokenVerifyResult {
  * @public 
  */
 
+/**
+ * Token type stored in the `typ` claim of internal tokens. Access and refresh tokens may share the
+ * same secret (REFRESH_TOKEN_SECRET falls back to TOKEN_SECRET), so the claim is what keeps a refresh
+ * token from being used as an access token and vice versa.
+ */
+export type InternalTokenType = 'access' | 'refresh'
+
 export class JwtService {
     INTERNAL_JWT_ALGORITHMS: jwt.Algorithm[] = ['HS256']
 
@@ -109,7 +116,7 @@ export class JwtService {
      * @param secret - The secret to test verify against 
      */
 
-    async verifyToken(token: string, secret = this.SECRET) {
+    async verifyToken(token: string, secret = this.SECRET, expectedType: InternalTokenType = 'access') {
         const decoded = jwt.decode(token) as JwtPayload | null
         const iss = decoded?.iss
         if (!iss) throw ({ message: 'Missing issuer claim', status: 401 })
@@ -125,7 +132,9 @@ export class JwtService {
             try {
                 const decodedToken = await (new Promise((resolve, reject) => {
                     jwt.verify(token, secret, { algorithms: this.INTERNAL_JWT_ALGORITHMS }, function (err: any, decoded: any) {
-                        if (err) reject({ message: "Token not valid or expired", status: 400 })
+                        if (err) return reject({ message: "Token not valid or expired", status: 400 })
+                        // Tokens issued before the typ claim was introduced carry no typ and stay valid until they expire.
+                        if (decoded?.typ && decoded.typ !== expectedType) return reject({ message: "Token not valid or expired", status: 400 })
                         return resolve(decoded);
                     })
                 }) as Promise<TokenVerifyResult>)
@@ -145,10 +154,11 @@ export class JwtService {
      * @returns The token to be used by the client to authenticate a specific user against REST services
      */
 
-    createToken(payload: TokenPayload, expiration: string | number = this.ACCESS_EXPIRATION, secret = this.SECRET): Promise<string> {
+    createToken(payload: TokenPayload, expiration: string | number = this.ACCESS_EXPIRATION, secret = this.SECRET, tokenType: InternalTokenType = 'access'): Promise<string> {
         return new Promise((resolve, reject) => {
             jwt.sign({
                 _id: payload._id,
+                typ: tokenType,
             }, secret, {
                 algorithm: 'HS256',
                 expiresIn: expiration, subject: payload._id, issuer:
@@ -168,7 +178,7 @@ export class JwtService {
     createAccessAndRefreshToken(payload: TokenPayload) {
         return Promise.all([
             this.createToken(payload, this.ACCESS_EXPIRATION),
-            this.createToken(payload, this.REFRESH_EXPIRATION, this.REFRESH_SECRET)
+            this.createToken(payload, this.REFRESH_EXPIRATION, this.REFRESH_SECRET, 'refresh')
         ]) as Promise<[string, string]>
     }
 }

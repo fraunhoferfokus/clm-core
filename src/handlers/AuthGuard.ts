@@ -176,6 +176,8 @@ export class AuthGuard {
 
         try {
             const token = await ConsumerDAO.findById(value)
+            // Deactivated tokens must not authenticate. Legacy tokens without the flag stay valid.
+            if (token.active === false) return next({ message: `Invalid API-Token`, status: 400 })
             req.apiToken = token;
             return next()
         } catch (err: any) {

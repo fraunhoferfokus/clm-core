@@ -27,7 +27,8 @@
  *  famecontact@fokus.fraunhofer.de
  * -----------------------------------------------------------------------------
  */
- import { checkSchema, Schema } from 'express-validator'
+import express from 'express'
+import { checkSchema, Schema } from 'express-validator'
 import UserDAO from '../models/User/UserDAO'
 
 
@@ -150,6 +151,20 @@ const updateSchema: Schema = {
 
 export const createUserValidation = checkSchema(createSchema)
 export const updateUserValidation = checkSchema(updateSchema)
+
+/**
+ * Fields that must never be set through a request body by a regular user.
+ * Without this guard a user could e.g. PATCH their own profile with `{ "isSuperAdmin": true }`,
+ * because the update falls back to the raw body when no validated field is present.
+ */
+export const PROTECTED_USER_FIELDS = ['_id', 'isSuperAdmin', 'isVerified', 'identityId', 'createdAt', 'updatedAt']
+
+export const stripProtectedUserFields: express.Handler = (req, res, next) => {
+    if (req.body && typeof req.body === 'object' && !req.requestingUser?.isSuperAdmin) {
+        for (const field of PROTECTED_USER_FIELDS) delete req.body[field]
+    }
+    return next()
+}
 
 
 

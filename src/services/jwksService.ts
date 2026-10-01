@@ -189,6 +189,12 @@ async function deriveJwksUri(provider: OIDCProviderConfig): Promise<string> {
   throw { status: 500, message: 'Unable to derive jwks_uri for provider' };
 }
 
+// Keys are cached per provider: a kid alone is not unique across IdPs, and a key published by one
+// provider must never verify a token that claims another provider's issuer.
+function pemCacheKey(provider: OIDCProviderConfig, kid: string) {
+  return `${provider.issuer || provider.jwks_uri || provider.authorization_endpoint}|${kid}`;
+}
+
 async function fetchJwks(provider: OIDCProviderConfig): Promise<SigningKeyCandidate[]> {
   const jwksUri = await deriveJwksUri(provider);
   const { data } = await axios.get(jwksUri, { timeout: 5000 });
@@ -203,7 +209,7 @@ async function fetchJwks(provider: OIDCProviderConfig): Promise<SigningKeyCandid
       const signingKey: SigningKeyCandidate = { kid: typeof jwk.kid === 'string' ? jwk.kid : undefined, pem };
       signingKeys.push(signingKey);
       if (signingKey.kid) {
-        pemCache[signingKey.kid] = { pem, expiresAt: now + KEY_TTL_MS };
+        pemCache[pemCacheKey(provider, signingKey.kid)] = { pem, expiresAt: now + KEY_TTL_MS };
       }
     } catch { /* skip invalid key */ }
   }
@@ -232,7 +238,7 @@ async function getProviderSigningKeys(provider: OIDCProviderConfig): Promise<Sig
 }
 
 export async function getSigningKey(kid: string, provider: OIDCProviderConfig) {
-  const cached = pemCache[kid];
+  const cached = pemCache[pemCacheKey(provider, kid)];
   if (cached && cached.expiresAt > Date.now()) return cached.pem;
   const signingKeys = await getProviderSigningKeys(provider);
   const matchingKey = signingKeys.find((signingKey) => signingKey.kid === kid);

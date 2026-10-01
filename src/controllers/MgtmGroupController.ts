@@ -334,9 +334,9 @@ controller.router.get('/relations', AuthGuard.permissionChecker('group'), contro
  *         204:
  *           description: Successfully deleted a group
  */
-controller.router.put('/:id', AuthGuard.permissionChecker('group'), updateGroupValidation)
-controller.router.patch('/:id', AuthGuard.permissionChecker('group'), updateGroupValidation)
-controller.router.delete('/:id', AuthGuard.permissionChecker('group'))
+controller.router.put('/:id', AuthGuard.permissionChecker('group', [{ in: 'path', name: 'id' }]), updateGroupValidation)
+controller.router.patch('/:id', AuthGuard.permissionChecker('group', [{ in: 'path', name: 'id' }]), updateGroupValidation)
+controller.router.delete('/:id', AuthGuard.permissionChecker('group', [{ in: 'path', name: 'id' }]))
 
 /**
  * @openapi

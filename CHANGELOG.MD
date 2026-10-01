@@ -2,6 +2,25 @@
 
 > Please document the releases (version numbers) in descending order
 
+## Unreleased
+### Security
+* Users can no longer set protected fields (`isSuperAdmin`, `isVerified`, `identityId`, `_id`) on their own account. Previously `PATCH /users/:id` with `{"isSuperAdmin": true}` granted super-admin rights.
+* Management routes for users (`GET/PATCH/PUT/DELETE /mgmt/users/:id`) and groups (`PATCH/PUT/DELETE /mgmt/groups/:id`) now check the caller's permission on the addressed resource, not only on any resource of that type. Previously every user could change other users' passwords or delete them.
+* The default `Self` role is immutable; existing installations are migrated on startup.
+* Access and refresh tokens carry a `typ` claim and are no longer interchangeable (tokens issued before this change stay valid until they expire).
+* `GET /users/userInfo` no longer returns the password hash.
+* Deactivated API tokens (`active: false`) are rejected.
+* OIDC broker: authorize URLs are built with `URLSearchParams` (no parameter injection through `nonce`), PKCE is no longer advertised in the discovery document, SSO login fails closed when the IdP token has no subject.
+* JWKS key cache is scoped per provider, so a key from one IdP cannot verify tokens claiming another issuer.
+* Auth rate limiter normalizes paths (case, trailing slash) and evicts idle entries.
+* SMTP certificates are verified by default (`SMTP_ALLOW_INSECURE_TLS=true` to opt out for local test servers).
+* nodemailer 10.0.13, brace-expansion and fast-uri updates (`npm audit`: 0 vulnerabilities).
+### Fixes
+* Errors thrown in controller pre-hooks reach the error handler instead of leaving the request hanging (e.g. updating a super-admin without `oldPassword`).
+* Re-added `ejs`, which is required to render the SSO login and success pages.
+* Docker image ships `pages/` and `views/` (SSO pages and e-mail templates) and defines a `HEALTHCHECK`.
+* E-mail templates: imprint link is configurable via `IMPRINT_URL`.
+
 ## v1.2.30
 ### Fixes
 * Refresh tokens: `REFRESH_TOKEN_SECRET` now falls back to `TOKEN_SECRET` when not set explicitly.

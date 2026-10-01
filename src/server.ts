@@ -58,12 +58,23 @@ const logger = new Logger({
   level: (process.env.LOG_LEVEL as any) || 'info',
 });
 
-function createSlidingWindowRateLimiter(windowMs: number, maxRequests: number, matches: (req: express.Request) => boolean): express.Handler {
+function createSlidingWindowRateLimiter(windowMs: number, maxRequests: number, matches: (normalizedPath: string) => boolean): express.Handler {
     const hits = new Map<string, number[]>()
-    return (req, res, next) => {
-        if (!matches(req)) return next()
+    // Drop idle clients so the map cannot grow without bound.
+    setInterval(() => {
+        const windowStart = Date.now() - windowMs
+        for (const [key, timestamps] of hits) {
+            if (!timestamps.length || timestamps[timestamps.length - 1] <= windowStart) hits.delete(key)
+        }
+    }, windowMs).unref()
 
-        const key = `${req.ip}:${req.path}`
+    return (req, res, next) => {
+        // Express routing is case-insensitive and ignores trailing slashes, so the limiter must be too;
+        // otherwise "/Authentication/" would bypass the limit for "/authentication".
+        const normalizedPath = req.path.toLowerCase().replace(/\/+$/, '')
+        if (!matches(normalizedPath)) return next()
+
+        const key = `${req.ip}:${normalizedPath}`
         const now = Date.now()
         const windowStart = now - windowMs
         const current = (hits.get(key) || []).filter((value) => value > windowStart)
@@ -128,16 +139,14 @@ const EXCLUDED_PATHS = [
 
 // Limit brute-force attempts on authentication and token exchange endpoints.
 if (!CONFIG.DISABLE_AUTH_RATE_LIMIT) {
-    app.use(createSlidingWindowRateLimiter(15 * 60 * 1000, 100, (req) => {
-        const authPaths = new Set([
-            `${basePath}/authentication`,
-            `${basePath}/authentication/refresh`,
-            `${basePath}/sso/oidc`,
-            `${basePath}/sso/oidc/backend/login`,
-            `${basePath}/sso/oidc/access_token_by_code`
-        ])
-        return authPaths.has(req.path)
-    }))
+    const authPaths = new Set([
+        `${basePath}/authentication`,
+        `${basePath}/authentication/refresh`,
+        `${basePath}/sso/oidc`,
+        `${basePath}/sso/oidc/backend/login`,
+        `${basePath}/sso/oidc/access_token_by_code`
+    ].map((path) => path.toLowerCase()))
+    app.use(createSlidingWindowRateLimiter(15 * 60 * 1000, 100, (normalizedPath) => authPaths.has(normalizedPath)))
 }
 
 app.get('/health', (req, res) => res.send('OK'))

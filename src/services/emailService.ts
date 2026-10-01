@@ -43,7 +43,8 @@ let transporter = nodemailer.createTransport({
         pass: CONFIG.SMTP_PASS
     },
     tls: {
-        rejectUnauthorized: false
+        // Certificate validation is on by default; only disable it for local test servers.
+        rejectUnauthorized: !CONFIG.SMTP_ALLOW_INSECURE_TLS
     }
 })
 

@@ -129,8 +129,12 @@ export class BaseModelController<DAO extends BaseDAO<Datamodel>, Datamodel exten
         callback?: (param: FDTO[]) => express.Handler): express.Handler {
         return (async (req, res, next) => {
             if (preback) {
-                const { proceed } = await preback(req, res, next)
-                if (!proceed) return
+                try {
+                    const { proceed } = await preback(req, res, next)
+                    if (!proceed) return
+                } catch (err) {
+                    return next(err)
+                }
             }
             try {
                 let documents: Datamodel[];
@@ -183,8 +187,12 @@ export class BaseModelController<DAO extends BaseDAO<Datamodel>, Datamodel exten
         callback?: (param: FDTO) => express.Handler): express.Handler {
         return async (req, res, next) => {
             if (preback) {
-                const { proceed } = await preback(req, res, next)
-                if (!proceed) return
+                try {
+                    const { proceed } = await preback(req, res, next)
+                    if (!proceed) return
+                } catch (err) {
+                    return next(err)
+                }
             }
             try {
                 const doc = new this.dtoClass(await this.dao.findById(req.params.id))
@@ -215,8 +223,12 @@ export class BaseModelController<DAO extends BaseDAO<Datamodel>, Datamodel exten
         callback?: (param?: FDTO) => express.Handler): express.Handler {
         return async (req, res, next) => {
             if (preback) {
-                const { proceed } = await preback(req, res, next)
-                if (!proceed) return
+                try {
+                    const { proceed } = await preback(req, res, next)
+                    if (!proceed) return
+                } catch (err) {
+                    return next(err)
+                }
             }
             try {
                 const doc = await this.dao.findById(req.params.id)
@@ -241,8 +253,12 @@ export class BaseModelController<DAO extends BaseDAO<Datamodel>, Datamodel exten
         callback?: (param?: FDTO, payload?: any, data?: any) => express.Handler): express.Handler {
         return async (req, res, next) => {
             if (preback) {
-                const { proceed } = await preback(req, res, next)
-                if (!proceed) return
+                try {
+                    const { proceed } = await preback(req, res, next)
+                    if (!proceed) return
+                } catch (err) {
+                    return next(err)
+                }
             }
             try {
                 let potentialPayload = matchedData(req, { locations: ['body', 'params'] })
@@ -269,8 +285,12 @@ export class BaseModelController<DAO extends BaseDAO<Datamodel>, Datamodel exten
         callback?: (param?: FDTO, payload?: any, data?: any) => express.Handler): express.Handler {
         return (async (req, res, next) => {
             if (preback) {
-                const { proceed } = await preback(req, res, next)
-                if (!proceed) return
+                try {
+                    const { proceed } = await preback(req, res, next)
+                    if (!proceed) return
+                } catch (err) {
+                    return next(err)
+                }
             }
             let potentialPayload = matchedData(req, { locations: ['body', 'params'] })
             const payload = Object.keys(potentialPayload).length > 0 ? potentialPayload : req.body

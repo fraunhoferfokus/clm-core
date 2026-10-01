@@ -214,7 +214,7 @@ class AuthController {
                 })
             } else {
                 return UserDAO.findById(decodedJWT.sub)
-                    .then((user) => Promise.all([jwtServiceInstance.verifyToken(token, jwtServiceInstance.REFRESH_SECRET), user]))
+                    .then((user) => Promise.all([jwtServiceInstance.verifyToken(token, jwtServiceInstance.REFRESH_SECRET, 'refresh'), user]))
                     .then(([, user]) => jwtServiceInstance.createToken(user))
                     .then((token) => {
                         let decodedA: any = jwt.decode(token);

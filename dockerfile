@@ -57,9 +57,16 @@ WORKDIR /app
 COPY --chown=appuser:appgroup --from=builder /app/node_modules ./node_modules
 COPY --chown=appuser:appgroup --from=builder /app/dist ./dist
 COPY --chown=appuser:appgroup healthcheck.js ./healthcheck.js
+# EJS-Seiten (SSO-Login) und Pug-Templates (E-Mails) werden zur Laufzeit gerendert
+COPY --chown=appuser:appgroup pages ./pages
+COPY --chown=appuser:appgroup views ./views
 
 # Auf Non-Root wechseln
 USER appuser
+
+ENV PORT=3001
+EXPOSE 3001
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD node healthcheck.js
 
 # Start-Kommando
 CMD ["node", "./dist/server.js"]

@@ -41,6 +41,7 @@ import transporter from '../services/emailService'
 import RelationBDTO from "../models/Relation/RelationBDTO";
 import SwaggerDefinition from "../services/SwaggerDefinition";
 import { CONFIG } from "../config/config";
+import { stripProtectedUserFields } from "../validationSchemas/UserValidation";
 
 
 const Cryptr = require('cryptr');
@@ -54,7 +55,9 @@ class UserController extends BaseModelController<typeof UserDAO, UserModel, User
 
     getOwnUserInformation: express.Handler = (req, res, next) => {
         try {
-            return res.json(req.requestingUser)
+            // Never return the password hash to the client
+            const { password, ...user } = (req.requestingUser || {}) as any
+            return res.json(user)
         } catch (err) {
             return next(err)
         }
@@ -495,6 +498,8 @@ controller.router.post('/', checkSchema({
  *               $ref: '#/components/schemas/user'
  */
 controller.router.use('/:id', AuthGuard.requireUserAuthentication({ sameUserAsId: true }))
+controller.router.patch('/:id', stripProtectedUserFields)
+controller.router.put('/:id', stripProtectedUserFields)
 
 
 controller.activateStandardRouting();
