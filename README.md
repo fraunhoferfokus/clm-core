@@ -5,8 +5,39 @@
 ![Node.js 24](https://img.shields.io/badge/node-24-339933?logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 
-**Identity, permission and relation core of the [Common Learning Middleware (CLM)](#what-is-the-common-learning-middleware).**
-`clm-core` manages users, groups, roles and API consumers, authenticates requests (local login, JWT, external OIDC providers) and provides the shared data model that all other CLM microservices build on. It runs as a standalone service and is also consumed as a library by the CLM extension services.
+## What is the Common Learning Middleware?
+
+The CLM connects educational technologies and specialised services into larger educational ecosystems based on open standards. Providers connect their learning content through the CLM with a publish-subscribe approach. The CLM supports common standards (LTI 1.1/1.3, cmi5, xAPI) and can translate between the standard of a client system and the standard of the target system at request time. Additional services such as recommender systems, AI-supported tutoring or learning analytics can be plugged in through the middleware.
+
+The approach has been used in, among others:
+
+- Prototype of the German National Education Platform "mEDUator": https://meduator.fokus.fraunhofer.de/
+- Research study "AI in LMS": https://kilms.fraunhofer.de/
+- Publicly funded projects on adaptive educational technologies, e.g. [Control&Connect](https://www.fokus.fraunhofer.de/en/projects/fame/control_connect_23-05), [EXPAND+ER WB³](https://www.fokus.fraunhofer.de/en/project/fame/expander_2021-12) and [TripleAdapt](https://www.fokus.fraunhofer.de/en/fame/projects/tripleadapt)
+
+### Video explanation
+
+Short explanation video of the user perspective (German only):
+
+https://github.com/fraunhoferfokus/clm-core/assets/135810890/44a340ab-1d86-4930-9c08-bffe457bc222
+
+### Open-core modules
+
+| Module | Purpose |
+| --- | --- |
+| **clm-core** (this repository) | Users, groups, roles, authentication, relation model |
+| [clm-ext-service_providers](https://github.com/fraunhoferfokus/clm-ext-service_providers) | Service providers that register launchable tools |
+| [clm-ext-tools](https://github.com/fraunhoferfokus/clm-ext-tools) | Launchable tools (LTI 1.1, LTI 1.3, cmi5) |
+| [clm-ext-learning_objects](https://github.com/fraunhoferfokus/clm-ext-learning_objects) | Nestable learning objects / courses and enrolments |
+| [clm-ext-launch](https://github.com/fraunhoferfokus/clm-ext-launch) | Launch requests and translation between launch specifications |
+| [clm-ext-tracedata](https://github.com/fraunhoferfokus/clm-ext-tracedata) | Persisting and routing xAPI statements to learning record stores |
+| [clm-ext-swagger](https://github.com/fraunhoferfokus/clm-ext-swagger) | Aggregated OpenAPI documentation of all deployed services |
+
+More CLM modules (additional standards, user interfaces, premium features) are not open source. If you need them, or cannot use the software under the AGPL, please contact the CLM team.
+
+## What is clm-core?
+
+`clm-core` is the identity, permission and relation core of the CLM. It manages users, groups, roles and API consumers, authenticates requests (local login, JWT, external OIDC providers) and provides the shared data model that all other CLM microservices build on. It runs as a standalone service and is also consumed as a library by the CLM extension services.
 
 ---
 
@@ -21,7 +52,6 @@
 - [Local development](#local-development)
 - [Using clm-core as a library](#using-clm-core-as-a-library)
 - [API documentation](#api-documentation)
-- [What is the Common Learning Middleware?](#what-is-the-common-learning-middleware)
 - [Contributing, security and license](#contributing-security-and-license)
 
 ## Features
@@ -250,36 +280,6 @@ Set `PG_CONFIG` before the import, because the DAOs connect on load. The full li
 
 - The OpenAPI 3 JSON of the running service is at `GET /core/swagger`. Use [clm-ext-swagger](https://github.com/fraunhoferfokus/clm-ext-swagger) or any OpenAPI viewer to browse it.
 - The static definition is in [api-docs/swagger.yaml](api-docs/swagger.yaml).
-
-## What is the Common Learning Middleware?
-
-The CLM connects educational technologies and specialised services into larger educational ecosystems based on open standards. Providers connect their learning content through the CLM with a publish-subscribe approach. The CLM supports common standards (LTI 1.1/1.3, cmi5, xAPI) and can translate between the standard of a client system and the standard of the target system at request time. Additional services such as recommender systems, AI-supported tutoring or learning analytics can be plugged in through the middleware.
-
-The approach has been used in, among others:
-
-- Prototype of the German National Education Platform "mEDUator": https://meduator.fokus.fraunhofer.de/
-- Research study "AI in LMS": https://kilms.fraunhofer.de/
-- Publicly funded projects on adaptive educational technologies, e.g. [Control&Connect](https://www.fokus.fraunhofer.de/en/projects/fame/control_connect_23-05), [EXPAND+ER WB³](https://www.fokus.fraunhofer.de/en/project/fame/expander_2021-12) and [TripleAdapt](https://www.fokus.fraunhofer.de/en/fame/projects/tripleadapt)
-
-### Video explanation
-
-Short explanation video of the user perspective (German only):
-
-https://github.com/fraunhoferfokus/clm-core/assets/135810890/44a340ab-1d86-4930-9c08-bffe457bc222
-
-### Open-core modules
-
-| Module | Purpose |
-| --- | --- |
-| **clm-core** (this repository) | Users, groups, roles, authentication, relation model |
-| [clm-ext-service_providers](https://github.com/fraunhoferfokus/clm-ext-service_providers) | Service providers that register launchable tools |
-| [clm-ext-tools](https://github.com/fraunhoferfokus/clm-ext-tools) | Launchable tools (LTI 1.1, LTI 1.3, cmi5) |
-| [clm-ext-learning_objects](https://github.com/fraunhoferfokus/clm-ext-learning_objects) | Nestable learning objects / courses and enrolments |
-| [clm-ext-launch](https://github.com/fraunhoferfokus/clm-ext-launch) | Launch requests and translation between launch specifications |
-| [clm-ext-tracedata](https://github.com/fraunhoferfokus/clm-ext-tracedata) | Persisting and routing xAPI statements to learning record stores |
-| [clm-ext-swagger](https://github.com/fraunhoferfokus/clm-ext-swagger) | Aggregated OpenAPI documentation of all deployed services |
-
-More CLM modules (additional standards, user interfaces, premium features) are not open source. If you need them, or cannot use the software under the AGPL, please contact the CLM team.
 
 ## Contributing, security and license
 
